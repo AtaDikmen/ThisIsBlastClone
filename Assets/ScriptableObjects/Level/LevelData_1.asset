@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e05d711eed5dbaa4a80b98ba9bb9c458, type: 3}
+  m_Name: LevelData_1
+  m_EditorClassIdentifier: Assembly-CSharp::ThisIsBlast.Level.LevelData
+  Row: 4
+  Column: 5
+  SlotCount: 3
+  ShooterBlocks:
+  - Type: 1
+    BulletCount: 3
+  - Type: 4
+    BulletCount: 1
+  - Type: 2
+    BulletCount: 5
+  - Type: 1
+    BulletCount: 2
+  - Type: 4
+    BulletCount: 4
+  - Type: 3
+    BulletCount: 3
+  - Type: 2
+    BulletCount: 2
+  Rows:
+  - Cells: 0200000003000000020000000200000001000000
+  - Cells: 0200000001000000030000000400000002000000
+  - Cells: 0400000001000000010000000300000002000000
+  - Cells: 0400000004000000020000000400000001000000
