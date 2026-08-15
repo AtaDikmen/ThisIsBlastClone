@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using Block;
 using Cysharp.Threading.Tasks;
 using Data;
@@ -20,10 +21,16 @@ namespace Shooter
 
         public event Action<ShooterBlock> OnTapped;
 
+        private Vector3 _defaultScale;
+        private Vector3 _defaultLocalPos;
+
         private void Awake()
         {
             if(GetComponent<Collider>() == null)
                 gameObject.AddComponent<BoxCollider>();
+
+            _defaultScale    = transform.localScale;
+            _defaultLocalPos = transform.localPosition;
         }
 
         public void Setup(BlockType type, int bulletCount)
@@ -67,9 +74,6 @@ namespace Shooter
             HandleClick();
         }
 
-        /// <summary>
-        /// Mermi fırlatır ve atış/patlama tamamlandığında onComplete callback'ini tetikler.
-        /// </summary>
         public void FireProjectileAt(
             GridBlock                     target,
             GameObject                    projectilePrefab,
@@ -83,6 +87,9 @@ namespace Shooter
             }
 
             IsFiring = true;
+
+            // Ateş etme anındaki "Juicy Cannon Shake / Recoil" animasyonunu paralel başlatıyoruz
+            PlayFireRecoilAsync(destroyCancellationToken).Forget();
 
             GameObject bulletObj;
             if(projectilePrefab != null)
@@ -117,8 +124,66 @@ namespace Shooter
         }
 
         /// <summary>
-        /// Triple Merge anında bloğun 1.35x büyüyüp yaylanarak geri esnemesini sağlayan Juicy Pop efekti.
+        /// Ateş etme anında küpün ezilip-esnemesini (Squash & Stretch) ve tepmesini (Recoil) sağlayan asenkron animasyon.
         /// </summary>
+        private async UniTaskVoid PlayFireRecoilAsync(CancellationToken ct)
+        {
+            Vector3 baseScale = transform.localScale;
+            Vector3 basePos   = transform.localPosition;
+
+            // Phase 1: Squash & Recoil Down (Ezip geriye tepme - 0.04sn)
+            Vector3 recoilScale = new Vector3(baseScale.x * 1.18f, baseScale.y * 0.82f, baseScale.z * 1.18f);
+            Vector3 recoilPos   = basePos - new Vector3(0f, 0.04f, 0f);
+
+            float elapsed   = 0f;
+            float duration1 = 0.04f;
+
+            while(elapsed < duration1)
+            {
+                ct.ThrowIfCancellationRequested();
+                elapsed += Time.deltaTime;
+                float t = elapsed / duration1;
+
+                transform.localScale    = Vector3.Lerp(baseScale, recoilScale, t);
+                transform.localPosition = Vector3.Lerp(basePos, recoilPos, t);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
+            // Phase 2: Stretch Up (Yaylanarak yukarı uzama - 0.06sn)
+            Vector3 stretchScale = new Vector3(baseScale.x * 0.92f, baseScale.y * 1.12f, baseScale.z * 0.92f);
+            elapsed = 0f;
+            float duration2 = 0.06f;
+
+            while(elapsed < duration2)
+            {
+                ct.ThrowIfCancellationRequested();
+                elapsed += Time.deltaTime;
+                float t = elapsed / duration2;
+
+                transform.localScale    = Vector3.Lerp(recoilScale, stretchScale, t);
+                transform.localPosition = Vector3.Lerp(recoilPos, basePos, t);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
+            // Phase 3: Elastic Settle (Eski formuna sönümlenerek oturma - 0.08sn)
+            elapsed = 0f;
+            float duration3 = 0.08f;
+
+            while(elapsed < duration3)
+            {
+                ct.ThrowIfCancellationRequested();
+                elapsed += Time.deltaTime;
+                float t      = elapsed / duration3;
+                float bounce = Mathf.Sin(t * Mathf.PI) * 0.05f;
+
+                transform.localScale = Vector3.Lerp(stretchScale, baseScale, t) + new Vector3(-bounce, bounce, -bounce);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
+            transform.localScale    = baseScale;
+            transform.localPosition = basePos;
+        }
+
         public async UniTask PlayMergeJuiceAsync()
         {
             Vector3 originalScale    = transform.localScale;
@@ -127,7 +192,6 @@ namespace Shooter
             float duration = 0.15f;
             float elapsed  = 0f;
 
-            // 1. Hızlı Büyüme (Punch Out)
             while(elapsed < duration)
             {
                 elapsed              += Time.deltaTime;
@@ -135,7 +199,6 @@ namespace Shooter
                 await UniTask.Yield();
             }
 
-            // 2. Yaylanarak Eski Boyuta Dönüş (Elastic Ease Out)
             elapsed  = 0f;
             duration = 0.18f;
             while(elapsed < duration)

@@ -23,13 +23,13 @@ namespace Core
             builder.Register<SaveService>(Lifetime.Singleton).As<ISaveService>();
             //builder.Register<AudioService>(Lifetime.Singleton).As<IAudioService>();
 
-            // 2. Scene References
+            // Scene References
             builder.RegisterComponent(_levelGenerator);
             builder.RegisterComponent(_gridManager);
             builder.RegisterComponent(_shooterQueue);
             builder.RegisterComponent(_gameplayController);
 
-            // 3. UI Controllers (UI Toolkit)
+            // UI Controllers
             //builder.RegisterComponentInHierarchy<GameplayUIController>();
         }
     }

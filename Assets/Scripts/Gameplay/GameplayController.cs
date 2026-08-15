@@ -161,8 +161,7 @@ namespace Gameplay
                 _shooterQueue.OnBlockSelected += HandleBlockSelectedFromQueue;
                 _shooterQueue.InitializeQueue(
                     _levelData,
-                    _levelGenerator.BlockPrefab,
-                    _levelGenerator.ApplyBlockColor
+                    _levelGenerator != null ? _levelGenerator.ApplyBlockColor : null
                 );
             }
             else
@@ -337,7 +336,7 @@ namespace Gameplay
                 if(primarySlot.IsOccupied)
                     primarySlot.StartFiringSequence();
 
-                Debug.Log($"[Triple Merge] ANINDA 3 adet {primaryBlock.Type} shooter birleşti! Toplam Mermi: {accumulatedAmmo}");
+                Debug.Log($"[Triple Merge] 3 adet {primaryBlock.Type} shooter birleşti! Toplam Mermi: {accumulatedAmmo}");
                 return true;
             }
             finally

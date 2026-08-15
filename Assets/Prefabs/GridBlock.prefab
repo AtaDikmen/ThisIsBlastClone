@@ -11,9 +11,10 @@ GameObject:
   - component: {fileID: 2547226007607145338}
   - component: {fileID: 1510477307117075679}
   - component: {fileID: 3680210907198162965}
-  - component: {fileID: 3913298037090008566}
+  - component: {fileID: 8340982039038666597}
+  - component: {fileID: 7426067044018192141}
   m_Layer: 0
-  m_Name: Cube
+  m_Name: GridBlock
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -91,7 +92,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &3913298037090008566
+--- !u!65 &8340982039038666597
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -112,3 +113,15 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.019999998, y: 0.018193034, z: 0.019753613}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &7426067044018192141
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2887440827896768960}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91a1d3f5c9ef70f45b6ee9c2362e0885, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Block.GridBlock

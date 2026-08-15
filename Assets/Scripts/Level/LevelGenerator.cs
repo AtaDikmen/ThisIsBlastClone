@@ -15,67 +15,46 @@ namespace Level
 
     public class LevelGenerator : MonoBehaviour
     {
-        [SerializeField] private LevelData _levelData;
+        [Header("Prefabs")]
+        [SerializeField] private GameObject _gridBlockPrefab;
 
-        [SerializeField] private GameObject _blockPrefab;
-
-        [Tooltip("Bloklar arasi bosluk (birim).")]
-        [SerializeField] private float _cellPadding = 0.1f;
-
-        [Tooltip("Tek bir blogun dunya boyutu (Scale).")]
-        [SerializeField] private float _cellSize = 0.2f;
-
-        [Tooltip("Grid'in en alt satırının (Front Row) duracağı SABİT dikey Y pozisyonu. Satır sayısı artsa da en alt sıra hep bu hizada kalır, fazlalıklar yukarı uzar.")]
+        [Header("Grid Layout Settings")]
+        [SerializeField] private float _cellPadding = 0.08f;
+        [SerializeField] private float _cellSize    = 0.25f;
         [SerializeField] private float _gridBottomY = -0.4f;
 
-        [Header("Renk Paleti")]
+        [Header("Color Palette")]
         [SerializeField] private BlockColorEntry[] _colorPalette;
 
-        // Cache
         private                 Dictionary<BlockType, Color> _colorLookup;
         private                 MaterialPropertyBlock        _propBlock;
-        private readonly static int                          _baseColorId = Shader.PropertyToID("_BaseColor");
+        private readonly static int                          BaseColorId = Shader.PropertyToID("_BaseColor");
 
         private readonly List<GameObject> _spawnedBlocks = new List<GameObject>();
 
-        public GameObject BlockPrefab      => _blockPrefab;
-        public LevelData  CurrentLevelData => _levelData;
+        public GameObject GridBlockPrefab  => _gridBlockPrefab;
+        public LevelData  CurrentLevelData { get; private set; }
 
-        public void Init(LevelData levelData, GameObject blockPrefab)
+        public List<GridColumn> GenerateGrid(LevelData levelData)
         {
-            _levelData   = levelData;
-            _blockPrefab = blockPrefab;
-        }
-
-        public List<GridColumn> GenerateGrid(LevelData levelData = null)
-        {
-            var data = levelData != null ? levelData : _levelData;
-            if(data == null)
+            CurrentLevelData = levelData;
+            if(CurrentLevelData == null || _gridBlockPrefab == null)
             {
-                Debug.LogError("[LevelGenerator] LevelData atanmamis!", this);
-                return new List<GridColumn>();
-            }
-
-            if(_blockPrefab == null)
-            {
-                Debug.LogError("[LevelGenerator] Block Prefab atanmamis!", this);
+                Debug.LogError("[LevelGenerator] LevelData veya GridBlockPrefab atanmamış!", this);
                 return new List<GridColumn>();
             }
 
             ClearLevel();
             BuildColorLookup();
 
-            int rows    = data.Row;
-            int columns = data.Column;
+            int rows    = CurrentLevelData.Row;
+            int columns = CurrentLevelData.Column;
 
             float stepX = _cellSize + _cellPadding;
             float stepY = _cellSize + _cellPadding;
 
-            // Yatayda ortala
-            float totalWidth = columns * _cellSize + (columns - 1) * _cellPadding;
-            float originX    = -totalWidth / 2f + _cellSize / 2f;
-
-            // Dikeyde SABIT taban cizgisi (Bottom row her zaman sabit Y noktasindadir)
+            float   totalWidth = columns * _cellSize + (columns - 1) * _cellPadding;
+            float   originX    = -totalWidth / 2f + _cellSize / 2f;
             float   bottomY    = _gridBottomY;
             Vector3 stepOffset = new Vector3(0f, stepY, 0f);
 
@@ -89,7 +68,6 @@ namespace Level
                 gridColumns.Add(col);
             }
 
-            // Alttaki satirdan (rows - 1) baslayarak en ust satira (0) dogru olustur
             for(int r = rows - 1; r >= 0; r--)
             {
                 int   rowIndexFromBottom = (rows - 1) - r;
@@ -97,14 +75,13 @@ namespace Level
 
                 for(int c = 0; c < columns; c++)
                 {
-                    BlockType cellType = data.GetCell(r, c);
-                    if(cellType == BlockType.Empty)
-                        continue;
+                    BlockType cellType = CurrentLevelData.GetCell(r, c);
+                    if(cellType == BlockType.Empty) continue;
 
                     float x        = originX + c * stepX;
                     var   worldPos = new Vector3(x, y, 0f);
 
-                    var blockObj = Instantiate(_blockPrefab, worldPos, Quaternion.identity, transform);
+                    var blockObj = Instantiate(_gridBlockPrefab, worldPos, Quaternion.identity, transform);
                     blockObj.name = $"GridBlock_{cellType}_{r}_{c}";
 
                     ApplyBlockColor(blockObj, cellType);
@@ -114,13 +91,11 @@ namespace Level
                         gridBlock = blockObj.AddComponent<GridBlock>();
 
                     gridBlock.Setup(cellType, c);
-
                     gridColumns[c].AddBlock(gridBlock);
                     _spawnedBlocks.Add(blockObj);
                 }
             }
 
-            Debug.Log($"[LevelGenerator] {_spawnedBlocks.Count} GridBlock uretildi ({rows}x{columns} grid). Taban Y: {bottomY}");
             return gridColumns;
         }
 
@@ -128,8 +103,7 @@ namespace Level
         {
             foreach(var block in _spawnedBlocks)
             {
-                if(block != null)
-                    Destroy(block);
+                if(block != null) Destroy(block);
             }
             _spawnedBlocks.Clear();
         }
@@ -149,9 +123,7 @@ namespace Level
             if(_colorPalette != null && _colorPalette.Length > 0)
             {
                 foreach(var entry in _colorPalette)
-                {
                     _colorLookup[entry.BlockType] = entry.Color;
-                }
             }
         }
 
@@ -160,24 +132,17 @@ namespace Level
             if(blockObj == null) return;
 
             var renderer = blockObj.GetComponentInChildren<Renderer>();
-            if(renderer == null)
-            {
-                Debug.LogWarning($"[LevelGenerator] '{blockObj.name}' icinde Renderer bulunamadi.");
-                return;
-            }
+            if(renderer == null) return;
 
-            if(_colorLookup == null)
-                BuildColorLookup();
-
-            if(_propBlock == null)
-                _propBlock = new MaterialPropertyBlock();
+            if(_colorLookup == null) BuildColorLookup();
+            if(_propBlock == null) _propBlock = new MaterialPropertyBlock();
 
             renderer.GetPropertyBlock(_propBlock);
 
-            if(_colorLookup != null && _colorLookup.TryGetValue(blockType, out Color color))
-                _propBlock.SetColor(_baseColorId, color);
+            if(_colorLookup.TryGetValue(blockType, out Color color))
+                _propBlock.SetColor(BaseColorId, color);
             else
-                _propBlock.SetColor(_baseColorId, Color.white);
+                _propBlock.SetColor(BaseColorId, Color.white);
 
             renderer.SetPropertyBlock(_propBlock);
         }

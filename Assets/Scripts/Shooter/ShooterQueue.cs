@@ -7,55 +7,32 @@ using UnityEngine;
 
 namespace Shooter
 {
-    [ExecuteAlways]
     public class ShooterQueue : MonoBehaviour
     {
+        [Header("Shooter Prefab")]
+        [Tooltip("Üzerinde Mermi Sayısı UI'ı (TMP) Olan Özel Shooter Prefab'ı")]
+        [SerializeField] private GameObject _shooterBlockPrefab;
+
         [Header("Layout Settings")]
-        [SerializeField, Range(1, 5)] private int _laneCount = 3;
-        [SerializeField] private float _queueHorizontalPadding = 0.15f;
-        [SerializeField] private float _queueVerticalPadding = 0.12f;
+        [SerializeField, Range(1, 5)] private int _laneCount = 5;
+        [SerializeField] private float _queueHorizontalPadding = 0.12f;
+        [SerializeField] private float _queueVerticalPadding = 0.10f;
         [SerializeField] private float _queueBlockSize = 0.25f;
         [SerializeField] private Vector3 _queueOriginPosition = new Vector3(0f, -1.8f, 0f);
 
-        [Header("Default Block Config")]
+        [Header("Default Settings")]
         [SerializeField] private int _defaultBulletCount = 20;
 
         private List<ShooterBlock>[] _lanes;
         public event Action<ShooterBlock> OnBlockSelected;
-        public event Action OnQueueEmpty;
 
-        public int DefaultBulletCount => _defaultBulletCount;
-
-        private void OnDrawGizmos()
-        {
-            if (Application.isPlaying) return;
-
-            // Inspector'dan kolay ayarlanabilmesi icin Editörde Grid Preview cizer
-            Gizmos.color = new Color(0f, 1f, 0.5f, 0.4f);
-            float stepX = _queueBlockSize + _queueHorizontalPadding;
-            float stepY = _queueBlockSize + _queueVerticalPadding;
-            float totalWidth = _laneCount * _queueBlockSize + (_laneCount - 1) * _queueHorizontalPadding;
-            float startX = _queueOriginPosition.x - (totalWidth / 2f) + (_queueBlockSize / 2f);
-
-            for (int lane = 0; lane < _laneCount; lane++)
-            {
-                float x = startX + lane * stepX;
-                for (int row = 0; row < 4; row++) // Örnek 4 sıra preview
-                {
-                    float y = _queueOriginPosition.y - (row * stepY);
-                    Gizmos.DrawWireCube(new Vector3(x, y, _queueOriginPosition.z), new Vector3(_queueBlockSize, _queueBlockSize, 0.05f));
-                }
-            }
-        }
-
-        public void InitializeQueue(LevelData levelData, GameObject prefab, Action<GameObject, BlockType> applyColorCallback)
+        public void InitializeQueue(LevelData levelData, Action<GameObject, BlockType> applyColorCallback)
         {
             ClearQueue();
 
-            if (levelData == null || prefab == null) return;
-            if (levelData.ShooterBlocks == null || levelData.ShooterBlocks.Length == 0)
+            if (levelData == null || _shooterBlockPrefab == null)
             {
-                Debug.LogWarning("[ShooterQueue] LevelData icinde ShooterBlocks tanimi bulunamadi!");
+                Debug.LogError("[ShooterQueue] LevelData veya ShooterBlockPrefab atanmamış!", this);
                 return;
             }
 
@@ -72,7 +49,8 @@ namespace Shooter
                 var entry = levelData.ShooterBlocks[i];
                 if (entry.Type == BlockType.Empty) continue;
 
-                var blockObj = Instantiate(prefab, transform);
+                // Özel Shooter Prefab'ından üretilir
+                var blockObj = Instantiate(_shooterBlockPrefab, transform);
                 blockObj.name = $"ShooterBlock_{entry.Type}_{i}";
 
                 applyColorCallback?.Invoke(blockObj, entry.Type);
@@ -81,7 +59,6 @@ namespace Shooter
                 if (shooterComp == null)
                     shooterComp = blockObj.AddComponent<ShooterBlock>();
 
-                // Eger LevelData'da ozel ammo belirtilmediyse varsayilan (20) mermiyi bas
                 int ammo = entry.BulletCount > 0 ? entry.BulletCount : _defaultBulletCount;
                 shooterComp.Setup(entry.Type, ammo);
                 shooterComp.OnTapped += HandleBlockTapped;
@@ -130,21 +107,6 @@ namespace Shooter
                     break;
                 }
             }
-
-            if (IsAllEmpty())
-            {
-                OnQueueEmpty?.Invoke();
-            }
-        }
-
-        private bool IsAllEmpty()
-        {
-            if (_lanes == null) return true;
-            for (int l = 0; l < _lanes.Length; l++)
-            {
-                if (_lanes[l].Count > 0) return false;
-            }
-            return true;
         }
 
         public void UpdateAllLanePositions(bool instant = false)
