@@ -4,6 +4,7 @@ using System.Linq;
 using Block;
 using Cysharp.Threading.Tasks;
 using Level;
+using PrimeTween;
 using Shooter;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -21,19 +22,12 @@ namespace Gameplay
         [SerializeField] private GameObject _projectilePrefab;
 
         [Header("Slot Yapilandirmasi")]
-        [Tooltip("Slotlarin yerlesecegi dunya pozisyonu merkezi.")]
         [SerializeField] private Vector3 _slotsOrigin = new Vector3(0f, -0.90f, 0f);
-
-        [Tooltip("Slotlar arasi bosluk.")]
         [SerializeField] private float _slotPadding = 0.08f;
-
-        [Tooltip("Slot boyutu.")]
-        [SerializeField] private float _slotSize = 0.25f;
+        [SerializeField] private float _slotSize    = 0.25f;
 
         [Header("Slot Gorsel Ayarlari")]
         [SerializeField] private GameObject _slotVisualPrefab;
-
-        [Tooltip("Otomatik slot cercevesi rengi.")]
         [SerializeField] private Color _slotFrameColor = new Color(0.06f, 0.04f, 0.16f, 0.75f);
 
         private readonly List<ShooterSlot> _slots = new List<ShooterSlot>();
@@ -152,9 +146,7 @@ namespace Gameplay
             CreateSlots(activeSlotCount);
 
             if(_shooterQueue == null)
-            {
                 _shooterQueue = FindAnyObjectByType<ShooterQueue>();
-            }
 
             if(_shooterQueue != null)
             {
@@ -163,10 +155,6 @@ namespace Gameplay
                     _levelData,
                     _levelGenerator != null ? _levelGenerator.ApplyBlockColor : null
                 );
-            }
-            else
-            {
-                Debug.LogError("[GameplayController] Sahnede ShooterQueue bileşeni bulunamadı!");
             }
         }
 
@@ -219,9 +207,7 @@ namespace Gameplay
 
             var renderer = quad.GetComponent<MeshRenderer>();
             if(renderer != null)
-            {
                 renderer.sharedMaterial = _slotMaterial;
-            }
         }
 
         private void EnsureSlotMaterial()
@@ -259,7 +245,6 @@ namespace Gameplay
             var emptySlot = FindEmptySlot();
             if(emptySlot == null)
             {
-                Debug.Log("[GameplayController] Tum slotlar dolu! Blok yerlestirilemiyor.");
                 CheckFailCondition();
                 return;
             }
@@ -302,23 +287,22 @@ namespace Gameplay
 
                 var primaryBlock = primarySlot.OccupiedBy;
 
-                // Mermileri topla
                 int accumulatedAmmo = primaryBlock.BulletCount;
                 foreach(var secSlot in secondarySlots)
                 {
                     accumulatedAmmo += secSlot.OccupiedBy.BulletCount;
                 }
 
-                // İkincil blokları slot referanslarından ayır
                 var movingBlocks = new List<Transform>();
                 foreach(var secSlot in secondarySlots)
                 {
                     var secBlock = secSlot.OccupiedBy;
                     secSlot.ClearSlotReferenceForMerge();
+
+                    secBlock.transform.SetParent(null);
                     movingBlocks.Add(secBlock.transform);
                 }
 
-                // Hızlı Birleşme Animasyonu (0.12 saniyede merkeze çekilme)
                 var animateTasks = new List<UniTask>();
                 foreach(var blockTransform in movingBlocks)
                 {
@@ -331,7 +315,9 @@ namespace Gameplay
                 await primaryBlock.PlayMergeJuiceAsync();
 
                 foreach(var secSlot in secondarySlots)
+                {
                     secSlot.NotifySlotFreed();
+                }
 
                 if(primarySlot.IsOccupied)
                     primarySlot.StartFiringSequence();
@@ -345,27 +331,18 @@ namespace Gameplay
             }
         }
 
+        /// <summary>
+        /// Triple Merge anında ikincil blokların merkezdeki ana bloğa doğru çekilmesi animasyonu.
+        /// </summary>
         private async UniTask AnimateBlockMergeAsync(Transform movingBlock, Vector3 targetPos)
         {
             if(movingBlock == null) return;
 
-            Vector3 startPos   = movingBlock.position;
-            Vector3 startScale = movingBlock.localScale;
-            float   duration   = 0.12f;
-            float   elapsed    = 0f;
+            var mergeSeq = Sequence.Create()
+                                   .Group(Tween.Position(movingBlock, targetPos, duration: 0.12f, ease: Ease.InCubic))
+                                   .Group(Tween.Scale(movingBlock, Vector3.zero, duration: 0.12f, ease: Ease.InCubic));
 
-            while(elapsed < duration)
-            {
-                if(movingBlock == null) return;
-                elapsed += Time.deltaTime;
-                float t     = elapsed / duration;
-                float easeT = t * t * t;
-
-                movingBlock.position   = Vector3.Lerp(startPos, targetPos, easeT);
-                movingBlock.localScale = Vector3.Lerp(startScale, Vector3.zero, easeT);
-
-                await UniTask.Yield();
-            }
+            await mergeSeq.ToYieldInstruction();
 
             if(movingBlock != null)
                 Destroy(movingBlock.gameObject);
