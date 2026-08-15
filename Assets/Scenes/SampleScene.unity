@@ -130,6 +130,7 @@ GameObject:
   - component: {fileID: 83267104}
   - component: {fileID: 83267103}
   - component: {fileID: 83267105}
+  - component: {fileID: 83267106}
   m_Layer: 0
   m_Name: LevelManager
   m_TagString: Untagged
@@ -152,7 +153,8 @@ MonoBehaviour:
   _levelData: {fileID: 11400000, guid: 973729c017cf91240a5b77bdda64488d, type: 2}
   _blockPrefab: {fileID: 2887440827896768960, guid: 937420d4d8bdc104dbea5a653f4b18e5, type: 3}
   _cellPadding: 0.1
-  _cellSize: 0.2
+  _cellSize: 1
+  _gridBottomY: -3
   _colorPalette:
   - BlockType: 1
     Color: {r: 0.9, g: 0.2, b: 0.2, a: 1}
@@ -196,11 +198,83 @@ MonoBehaviour:
   _levelData: {fileID: 11400000, guid: 973729c017cf91240a5b77bdda64488d, type: 2}
   _levelGenerator: {fileID: 83267103}
   _gridManager: {fileID: 1809510412}
-  _shooterQueue: {fileID: 0}
+  _shooterQueue: {fileID: 83267106}
   _projectilePrefab: {fileID: 824299106496865480, guid: e3084eba438099b4a812cfb236b5434b, type: 3}
-  _slotsOrigin: {x: 0, y: -1, z: 0}
-  _slotPadding: 0.08
-  _slotSize: 0.25
+  _slotsOrigin: {x: 0, y: -5, z: 0}
+  _slotPadding: 0.3
+  _slotSize: 1
+  _slotVisualPrefab: {fileID: 0}
+  _slotFrameColor: {r: 0.06, g: 0.04, b: 0.16, a: 0.75}
+--- !u!114 &83267106
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 83267102}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fcc68af99519c844be9bcd55a68a767, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Shooter.ShooterQueue
+  _laneCount: 5
+  _queueHorizontalPadding: 0.5
+  _queueVerticalPadding: 0.5
+  _queueBlockSize: 1
+  _queueOriginPosition: {x: 0, y: -8, z: 0}
+  _defaultBulletCount: 20
+--- !u!1 &137778656
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 137778658}
+  - component: {fileID: 137778657}
+  m_Layer: 0
+  m_Name: GameLifetimeScope
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &137778657
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137778656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d060221aa9984aeb819a083036b94aa8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Core.GameLifetimeScope
+  parentReference:
+    TypeName: 
+  autoRun: 1
+  autoInjectGameObjects: []
+  _levelGenerator: {fileID: 83267103}
+  _gridManager: {fileID: 1809510412}
+  _shooterQueue: {fileID: 83267106}
+  _gameplayController: {fileID: 83267105}
+--- !u!4 &137778658
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137778656}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.61624, y: -0, z: 7.85077}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -259,10 +333,10 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
-  field of view: 60
-  orthographic: 1
+  near clip plane: 0.1
+  far clip plane: 100
+  field of view: 30
+  orthographic: 0
   orthographic size: 5
   m_Depth: -1
   m_CullingMask:
@@ -288,7 +362,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: -40}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -567,3 +641,4 @@ SceneRoots:
   - {fileID: 832575519}
   - {fileID: 83267104}
   - {fileID: 1809510413}
+  - {fileID: 137778658}

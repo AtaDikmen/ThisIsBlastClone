@@ -1,5 +1,6 @@
 ﻿using System;
 using Block;
+using Cysharp.Threading.Tasks;
 using Data;
 using TMPro;
 using UnityEngine;
@@ -8,29 +9,20 @@ namespace Shooter
 {
     public class ShooterBlock : MonoBehaviour
     {
-        public BlockType Type { get; private set; }
-
-        public int BulletCount { get; private set; }
-
-        public bool IsEmpty => BulletCount <= 0;
-
-        public bool IsInSlot { get; set; }
-
-        public bool IsFiring { get; private set; }
+        public BlockType Type        { get; private set; }
+        public int       BulletCount { get; private set; }
+        public bool      IsEmpty     => BulletCount <= 0;
+        public bool      IsInSlot    { get; set; }
+        public bool      IsFiring    { get; private set; }
 
         [Header("UI")]
         [SerializeField] private TMP_Text _bulletLabel;
 
         public event Action<ShooterBlock> OnTapped;
 
-        public event Action<ShooterBlock> OnEmpty;
-
-        public event Action<ShooterBlock> OnFired;
-
         private void Awake()
         {
-            var col = GetComponent<Collider>();
-            if(col == null)
+            if(GetComponent<Collider>() == null)
                 gameObject.AddComponent<BoxCollider>();
         }
 
@@ -47,6 +39,23 @@ namespace Shooter
             RefreshLabel();
         }
 
+        public void SetFiringState(bool isFiring)
+        {
+            IsFiring = isFiring;
+        }
+
+        public void DecreaseBulletCount()
+        {
+            BulletCount--;
+            RefreshLabel();
+        }
+
+        public void SetBulletCount(int newAmount)
+        {
+            BulletCount = newAmount;
+            RefreshLabel();
+        }
+
         public void HandleClick()
         {
             if(!IsInSlot && !IsFiring)
@@ -58,15 +67,28 @@ namespace Shooter
             HandleClick();
         }
 
-        public void FireProjectileAt(GridBlock target, GameObject projectilePrefab, Action<GameObject, BlockType> applyColorCallback)
+        /// <summary>
+        /// Mermi fırlatır ve atış/patlama tamamlandığında onComplete callback'ini tetikler.
+        /// </summary>
+        public void FireProjectileAt(
+            GridBlock                     target,
+            GameObject                    projectilePrefab,
+            Action<GameObject, BlockType> applyColorCallback,
+            Action                        onComplete = null)
         {
-            if(IsEmpty || target == null) return;
+            if(IsEmpty || target == null)
+            {
+                onComplete?.Invoke();
+                return;
+            }
 
             IsFiring = true;
 
             GameObject bulletObj;
             if(projectilePrefab != null)
+            {
                 bulletObj = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
+            }
             else
             {
                 bulletObj                      = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -78,7 +100,6 @@ namespace Shooter
             }
 
             bulletObj.name = $"Bullet_{Type}";
-
             applyColorCallback?.Invoke(bulletObj, Type);
 
             var proj = bulletObj.GetComponent<Projectile>();
@@ -87,21 +108,46 @@ namespace Shooter
 
             proj.Launch(target, () =>
             {
-                BulletCount--;
-                RefreshLabel();
-
                 if(target != null)
                     target.Explode();
 
                 IsFiring = false;
-                OnFired?.Invoke(this);
-
-                if(IsEmpty)
-                {
-                    OnEmpty?.Invoke(this);
-                    Destroy(gameObject);
-                }
+                onComplete?.Invoke();
             });
+        }
+
+        /// <summary>
+        /// Triple Merge anında bloğun 1.35x büyüyüp yaylanarak geri esnemesini sağlayan Juicy Pop efekti.
+        /// </summary>
+        public async UniTask PlayMergeJuiceAsync()
+        {
+            Vector3 originalScale    = transform.localScale;
+            Vector3 targetPunchScale = originalScale * 1.35f;
+
+            float duration = 0.15f;
+            float elapsed  = 0f;
+
+            // 1. Hızlı Büyüme (Punch Out)
+            while(elapsed < duration)
+            {
+                elapsed              += Time.deltaTime;
+                transform.localScale =  Vector3.Lerp(originalScale, targetPunchScale, elapsed / duration);
+                await UniTask.Yield();
+            }
+
+            // 2. Yaylanarak Eski Boyuta Dönüş (Elastic Ease Out)
+            elapsed  = 0f;
+            duration = 0.18f;
+            while(elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t      = elapsed / duration;
+                float bounce = Mathf.Sin(t * Mathf.PI) * 0.12f;
+                transform.localScale = Vector3.Lerp(targetPunchScale, originalScale, t) + new Vector3(bounce, bounce, bounce);
+                await UniTask.Yield();
+            }
+
+            transform.localScale = originalScale;
         }
 
         public void RefreshLabel()

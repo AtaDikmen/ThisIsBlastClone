@@ -1,116 +1,171 @@
 ﻿using System;
-using System.Collections;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using UnityEngine;
 using Block;
 using Data;
-using UnityEngine;
 
 namespace Shooter
 {
     public class ShooterSlot : MonoBehaviour
     {
         public ShooterBlock OccupiedBy { get; private set; }
-        public bool         IsOccupied => OccupiedBy != null;
-        public bool         CanFire    { get; private set; }
+        public bool IsOccupied => OccupiedBy != null;
 
         public event Action<ShooterSlot> OnSlotFreed;
 
-        private GridManager                   _gridManager;
-        private GameObject                    _projectilePrefab;
+        private GridManager _gridManager;
+        private GameObject _projectilePrefab;
         private Action<GameObject, BlockType> _applyColorCallback;
-        private Coroutine                     _fireLoopRoutine;
 
-        public void PlaceAndFire(ShooterBlock block, GridManager gridManager, GameObject projectilePrefab, Action<GameObject, BlockType> applyColorCallback)
+        private readonly SemaphoreSlim _placementLock = new SemaphoreSlim(1, 1);
+        private CancellationTokenSource _cts;
+
+        private void Awake()
         {
-            if(IsOccupied)
-            {
-                Debug.LogWarning($"[ShooterSlot] '{name}' zaten dolu!");
-                return;
-            }
-
-            _gridManager        = gridManager;
-            _projectilePrefab   = projectilePrefab;
-            _applyColorCallback = applyColorCallback;
-            OccupiedBy          = block;
-            OccupiedBy.IsInSlot = true;
-
-            block.OnEmpty += HandleBlockEmpty;
-            block.OnFired += HandleBlockFired;
-
-            if(_gridManager != null)
-                _gridManager.OnFrontRowChanged += TryFire;
-
-            StartCoroutine(MoveToSlotAndStartFiring(block));
+            _cts = new CancellationTokenSource();
         }
 
-        private IEnumerator MoveToSlotAndStartFiring(ShooterBlock block)
+        private void OnDestroy()
         {
-            Vector3 startPos  = block.transform.position;
-            Vector3 targetPos = transform.position;
-            float   duration  = 0.18f;
-            float   elapsed   = 0f;
-
-            while(elapsed < duration)
-            {
-                if(block == null) yield break;
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                t                        = Mathf.Sin(t * Mathf.PI * 0.5f);
-                block.transform.position = Vector3.Lerp(startPos, targetPos, t);
-                yield return null;
-            }
-
-            if(block != null)
-            {
-                block.transform.position = targetPos;
-                block.transform.SetParent(transform);
-            }
-
-            TryFire();
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _placementLock?.Dispose();
         }
 
-        public void TryFire()
+        /// <summary>
+        /// Bloğu slota taşır, yerleşme biter bitmez Merge kontrolünün yapılmasına izin verir, ardından ateş etmeyi başlatır.
+        /// </summary>
+        public async UniTask PlaceAndAnimateAsync(
+            ShooterBlock block, 
+            GridManager gridManager, 
+            GameObject projectilePrefab, 
+            Action<GameObject, BlockType> applyColorCallback)
         {
-            if(!IsOccupied || OccupiedBy == null || _gridManager == null) return;
-            if(OccupiedBy.IsFiring || OccupiedBy.IsEmpty) return;
+            await _placementLock.WaitAsync(_cts.Token);
+
+            try
+            {
+                _gridManager = gridManager;
+                _projectilePrefab = projectilePrefab;
+                _applyColorCallback = applyColorCallback;
+
+                OccupiedBy = block;
+                OccupiedBy.IsInSlot = true;
+
+                // Slota yerleşme animasyonu (EaseOutQuad)
+                await AnimateToSlotAsync(block.transform, transform.position, 0.16f, _cts.Token);
+
+                if (block != null)
+                    block.transform.SetParent(transform);
+
+                if (_gridManager != null)
+                    _gridManager.OnFrontRowChanged += OnFrontRowChangedHandler;
+            }
+            finally
+            {
+                _placementLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Merge kontrolü tamamlandıktan sonra dışarıdan tetiklenerek ateş etmeyi başlatır.
+        /// </summary>
+        public void StartFiringSequence()
+        {
+            CheckAndFireSequenceAsync(_cts.Token).Forget();
+        }
+
+        private void OnFrontRowChangedHandler()
+        {
+            CheckAndFireSequenceAsync(_cts.Token).Forget();
+        }
+
+        private async UniTask CheckAndFireSequenceAsync(CancellationToken ct)
+        {
+            if (!IsOccupied || OccupiedBy == null || _gridManager == null) return;
+            if (OccupiedBy.IsFiring || OccupiedBy.IsEmpty) return;
 
             var target = _gridManager.GetFrontBlock(OccupiedBy.Type);
+            if (target != null)
+            {
+                OccupiedBy.SetFiringState(true);
 
-            if(target != null)
-            {
-                CanFire = true;
-                OccupiedBy.FireProjectileAt(target, _projectilePrefab, _applyColorCallback);
-            }
-            else
-            {
-                CanFire = false;
+                await FireProjectileTaskAsync(target, ct);
+
+                if (OccupiedBy == null) return;
+
+                OccupiedBy.DecreaseBulletCount();
+
+                if (OccupiedBy.IsEmpty)
+                {
+                    HandleEmpty();
+                }
+                else
+                {
+                    OccupiedBy.SetFiringState(false);
+                    await UniTask.Delay(TimeSpan.FromSeconds(0.06f), cancellationToken: ct);
+                    await CheckAndFireSequenceAsync(ct);
+                }
             }
         }
 
-        private void HandleBlockFired(ShooterBlock block)
+        private async UniTask AnimateToSlotAsync(Transform target, Vector3 dest, float duration, CancellationToken ct)
         {
-            if(gameObject.activeInHierarchy)
-                StartCoroutine(DelayedNextShotCheck());
-        }
+            if (target == null) return;
+            Vector3 startPos = target.position;
+            float elapsed = 0f;
 
-        private IEnumerator DelayedNextShotCheck()
-        {
-            yield return new WaitForSeconds(0.08f);
-            TryFire();
-        }
-
-        private void HandleBlockEmpty(ShooterBlock block)
-        {
-            if(block != null)
+            while (elapsed < duration)
             {
-                block.OnEmpty -= HandleBlockEmpty;
-                block.OnFired -= HandleBlockFired;
+                ct.ThrowIfCancellationRequested();
+                if (target == null) return;
+
+                elapsed += Time.deltaTime;
+                float t = Mathf.Sin((elapsed / duration) * Mathf.PI * 0.5f);
+                target.position = Vector3.Lerp(startPos, dest, t);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
             }
 
-            if(_gridManager != null)
-                _gridManager.OnFrontRowChanged -= TryFire;
+            if (target != null)
+                target.position = dest;
+        }
+
+        private async UniTask FireProjectileTaskAsync(GridBlock target, CancellationToken ct)
+        {
+            var utcs = new UniTaskCompletionSource();
+
+            OccupiedBy.FireProjectileAt(target, _projectilePrefab, _applyColorCallback, () =>
+            {
+                utcs.TrySetResult();
+            });
+
+            await utcs.Task;
+        }
+
+        public void ClearSlotReferenceForMerge()
+        {
+            if (_gridManager != null)
+                _gridManager.OnFrontRowChanged -= OnFrontRowChangedHandler;
 
             OccupiedBy = null;
-            CanFire    = false;
+        }
+
+        public void NotifySlotFreed()
+        {
+            OnSlotFreed?.Invoke(this);
+        }
+
+        private void HandleEmpty()
+        {
+            if (_gridManager != null)
+                _gridManager.OnFrontRowChanged -= OnFrontRowChangedHandler;
+
+            var tempBlock = OccupiedBy;
+            OccupiedBy = null;
+
+            if (tempBlock != null)
+                Destroy(tempBlock.gameObject);
 
             OnSlotFreed?.Invoke(this);
         }
