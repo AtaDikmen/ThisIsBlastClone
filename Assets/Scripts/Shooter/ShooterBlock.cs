@@ -26,7 +26,9 @@ namespace Shooter
         [SerializeField] private float singleHopDuration  = 0.20f;
         [SerializeField] private float impactSquashAmount = 0.30f;
 
-        private Vector3  _defaultScale = Vector3.one * 0.25f;
+        private Vector3    _defaultScale = Vector3.one * 0.25f;
+        private Quaternion _defaultRotation;
+
         private Sequence _activeRecoilSequence;
         private Sequence _activeMergeSequence;
         private Sequence _activeRunAwaySequence;
@@ -38,7 +40,13 @@ namespace Shooter
             if(GetComponent<Collider>() == null)
                 gameObject.AddComponent<BoxCollider>();
 
-            _defaultScale = transform.localScale;
+            _defaultScale    = transform.localScale;
+            _defaultRotation = transform.localRotation;
+        }
+
+        private void OnMouseDown()
+        {
+            HandleClick();
         }
 
         private void OnDestroy()
@@ -81,16 +89,7 @@ namespace Shooter
                 OnTapped?.Invoke(this);
         }
 
-        private void OnMouseDown()
-        {
-            HandleClick();
-        }
-
-        public void FireProjectileAt(
-            GridBlock                     target,
-            GameObject                    projectilePrefab,
-            Action<GameObject, BlockType> applyColorCallback,
-            Action                        onComplete = null)
+        public void FireProjectileAt(GridBlock target, GameObject projectilePrefab, Action<GameObject, BlockType> applyColorCallback, Action onComplete = null)
         {
             if(IsEmpty || target == null)
             {
@@ -99,7 +98,7 @@ namespace Shooter
             }
 
             IsFiring = true;
-            PlayFireRecoil().Forget();
+            PlayFireRecoil(target.transform.position).Forget();
 
             GameObject bulletObj;
             if(projectilePrefab != null)
@@ -133,35 +132,54 @@ namespace Shooter
             });
         }
 
-        private async UniTaskVoid PlayFireRecoil()
+        private async UniTaskVoid PlayFireRecoil(Vector3 targetWorldPosition)
         {
             if(_activeRecoilSequence.isAlive)
                 _activeRecoilSequence.Stop();
 
             transform.localScale = _defaultScale;
 
-            Vector3 recoilScale  = new Vector3(_defaultScale.x * 1.22f, _defaultScale.y * 0.78f, _defaultScale.z * 1.22f);
-            Vector3 stretchScale = new Vector3(_defaultScale.x * 0.90f, _defaultScale.y * 1.12f, _defaultScale.z * 0.90f);
+            Vector3 direction                       = (targetWorldPosition - transform.position).normalized;
+            if(direction == Vector3.zero) direction = Vector3.forward;
 
-            _activeRecoilSequence = Sequence.Create()
-                                            .Group(Tween.Scale(transform, recoilScale, duration: 0.04f, ease: Ease.OutQuad))
-                                            .Group(Tween.PunchLocalPosition(transform, new Vector3(0f, -0.05f, 0f), duration: 0.08f, frequency: 1))
-                                            .Chain(Tween.Scale(transform, stretchScale, duration: 0.05f, ease: Ease.OutQuad))
-                                            .Chain(Tween.Scale(transform, _defaultScale, duration: 0.08f, ease: Ease.OutElastic));
+            Quaternion targetRotation = Quaternion.LookRotation(Vector3.forward, direction);
 
+            Vector3 recoilScale       = new Vector3(_defaultScale.x * 1.22f, _defaultScale.y * 0.78f, _defaultScale.z * 1.22f);
+            Vector3 stretchScale      = new Vector3(_defaultScale.x * 0.90f, _defaultScale.y * 1.12f, _defaultScale.z * 0.90f);
+            Vector3 recoilPunchVector = -direction * 0.12f;
+
+            var seq = Sequence.Create();
+
+            if(Quaternion.Angle(transform.rotation, targetRotation) > 0.1f)
+                seq = seq.Group(Tween.Rotation(transform, endValue: targetRotation, duration: 0.05f, ease: Ease.OutQuad));
+
+            seq = seq.Group(Tween.Scale(transform, recoilScale, duration: 0.04f, ease: Ease.OutQuad))
+                     .Group(Tween.PunchLocalPosition(transform, recoilPunchVector, duration: 0.10f, frequency: 1))
+                     .Chain(Tween.Scale(transform, stretchScale, duration: 0.05f, ease: Ease.OutQuad))
+                     .Chain(Tween.Scale(transform, _defaultScale, duration: 0.08f, ease: Ease.OutElastic));
+
+            if(Quaternion.Angle(targetRotation, _defaultRotation) > 0.1f)
+                seq = seq.Chain(Tween.Rotation(transform, endValue: _defaultRotation, duration: 0.15f, ease: Ease.OutQuad));
+
+            _activeRecoilSequence = seq;
             await _activeRecoilSequence.ToYieldInstruction();
         }
 
         public async UniTask PlayMergeJuiceAsync()
         {
-            if(_activeMergeSequence.isAlive)
-                _activeMergeSequence.Stop();
+            if(_activeMergeSequence.isAlive) _activeMergeSequence.Stop();
 
-            Vector3 targetPunchScale = _defaultScale * 1.4f;
+            // Yumuşak ve dengeli ölçekleme hedefleri
+            Vector3 anticipationScale = _defaultScale * 0.88f; // Hafif, tatlı bir içe büzülme
+            Vector3 peakScale         = _defaultScale * 1.32f; // Organik tepe büyüklüğü
 
             _activeMergeSequence = Sequence.Create()
-                                           .Chain(Tween.Scale(transform, targetPunchScale, duration: 0.12f, ease: Ease.OutBack))
-                                           .Chain(Tween.Scale(transform, _defaultScale, duration: 0.16f, ease: Ease.OutBounce));
+                                           // 1. Hazırlık (Anticipation): Akıcı hafif içe esneme
+                                           .Chain(Tween.Scale(transform, anticipationScale, duration: 0.10f, ease: Ease.OutSine))
+                                           // 2. Genleşme (Swell): Yarıçapın akıcı bir şekilde büyümesi
+                                           .Chain(Tween.Scale(transform, peakScale, duration: 0.22f, ease: Ease.OutCubic))
+                                           // 3. Oturma (Settle): Sarsıntısız, yumuşakça orijinal boyuta dönme
+                                           .Chain(Tween.Scale(transform, _defaultScale, duration: 0.20f, ease: Ease.OutQuad));
 
             await _activeMergeSequence.ToYieldInstruction();
         }
@@ -177,7 +195,8 @@ namespace Shooter
             Vector3 clearSlotHeightPos = startPos + new Vector3(0f, 0.70f, 0f);
 
             _activeRunAwaySequence = Sequence.Create()
-                                             .Chain(Tween.Position(transform, clearSlotHeightPos, duration: 0.14f, ease: Ease.OutQuad))
+                                             .Group(Tween.Rotation(transform, endValue: _defaultRotation, duration: 0.10f, ease: Ease.OutQuad))
+                                             .Group(Tween.Position(transform, clearSlotHeightPos, duration: 0.14f, ease: Ease.OutQuad))
                                              .Group(Tween.PunchScale(transform, new Vector3(-0.20f, 0.25f, 0f), duration: 0.14f, frequency: 1));
 
             float stepDistanceX = escapeDistanceX / totalHops;

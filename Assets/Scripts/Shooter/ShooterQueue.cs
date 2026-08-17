@@ -14,9 +14,9 @@ namespace Shooter
 
         [Header("Layout Settings")]
         [SerializeField, Range(1, 5)] private int laneCount = 5;
-        [SerializeField] private float   queueHorizontalPadding = 0.12f;
-        [SerializeField] private float   queueVerticalPadding   = 0.10f;
-        [SerializeField] private float   queueBlockSize         = 0.25f;
+        [SerializeField] private float   queueHorizontalPadding = 0.5f;
+        [SerializeField] private float   queueVerticalPadding   = 0.5f;
+        [SerializeField] private float   queueBlockSize         = 1f;
         [SerializeField] private Vector3 queueOriginPosition    = new Vector3(0f, -1.8f, 0f);
 
         private List<ShooterBlock>[]      _lanes;

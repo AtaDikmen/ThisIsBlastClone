@@ -38,6 +38,7 @@ namespace Level
         public List<GridColumn> GenerateGrid(LevelData levelData)
         {
             CurrentLevelData = levelData;
+
             if(CurrentLevelData == null || _gridBlockPrefab == null)
             {
                 Debug.LogError("[LevelGenerator] LevelData veya GridBlockPrefab atanmamış!", this);
@@ -135,16 +136,21 @@ namespace Level
             if(renderer == null) return;
 
             if(_colorLookup == null) BuildColorLookup();
-            if(_propBlock == null) _propBlock = new MaterialPropertyBlock();
+            _propBlock ??= new MaterialPropertyBlock();
 
             renderer.GetPropertyBlock(_propBlock);
 
-            if(_colorLookup.TryGetValue(blockType, out Color color))
+            if(_colorLookup != null && _colorLookup.TryGetValue(blockType, out Color color))
                 _propBlock.SetColor(BaseColorId, color);
             else
                 _propBlock.SetColor(BaseColorId, Color.white);
 
             renderer.SetPropertyBlock(_propBlock);
+        }
+
+        public int GetActiveBlockCount()
+        {
+            return _spawnedBlocks.Count;
         }
     }
 }

@@ -16,19 +16,19 @@ namespace Block
         public void RegisterColumns(IEnumerable<GridColumn> columns)
         {
             _columns.Clear();
-            foreach (var col in columns)
+            foreach(var col in columns)
             {
                 _columns.Add(col);
-                col.OnFrontChanged  += _ => OnFrontRowChanged?.Invoke();
-                col.OnColumnEmpty   += HandleColumnEmpty;
+                col.OnFrontChanged += _ => OnFrontRowChanged?.Invoke();
+                col.OnColumnEmpty  += HandleColumnEmpty;
             }
         }
 
         public GridBlock GetFrontBlock(BlockType type)
         {
-            foreach (var col in _columns)
+            foreach(var col in _columns)
             {
-                if (!col.IsEmpty && col.FrontType == type)
+                if(!col.IsEmpty && col.FrontType == type)
                     return col.FrontBlock;
             }
             return null;
@@ -39,15 +39,31 @@ namespace Block
 
         public bool IsAllEmpty()
         {
-            foreach (var col in _columns)
-                if (!col.IsEmpty) return false;
+            foreach(var col in _columns)
+                if(!col.IsEmpty)
+                    return false;
             return true;
+        }
+
+        public GridBlock GetAvailableFrontBlock(BlockType type)
+        {
+            foreach(var col in _columns)
+            {
+                if(!col.IsEmpty && col.FrontType == type)
+                {
+                    var frontBlock = col.FrontBlock;
+                    if(frontBlock != null && !frontBlock.IsTargeted)
+                    {
+                        return frontBlock;
+                    }
+                }
+            }
+            return null;
         }
 
         private void HandleColumnEmpty(GridColumn col)
         {
-            // Butun kolonlar bosaldiysa level tamamlandi
-            if (IsAllEmpty())
+            if(IsAllEmpty())
             {
                 Debug.Log("[GridManager] Tum bloklar patladi! Level tamamlandi.");
                 OnLevelComplete?.Invoke();

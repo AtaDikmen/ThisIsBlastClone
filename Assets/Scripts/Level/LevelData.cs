@@ -5,82 +5,67 @@ using UnityEngine;
 
 namespace Level
 {
-    /// <summary>
-    /// Grid'in tek bir satirini temsil eder.
-    /// </summary>
-    [Serializable]
-    public struct GridRow
-    {
-        [Tooltip("Sol'dan saga, bu satirdaki blok tipleri.")]
-        public BlockType[] Cells;
-    }
-
-    /// <summary>
-    /// ShooterBlock kuyruğunun tek bir elemanini temsil eder.
-    /// </summary>
     [Serializable]
     public struct ShooterBlockEntry
     {
-        [Tooltip("Bu ShooterBlock'un rengi / blok tipi.")]
+        [Tooltip("Shooter bloğun rengi/tipi.")]
         public BlockType Type;
 
-        [Tooltip("Bu ShooterBlock'un kaç GridBlock patlatabileceği. Minimum 1.")]
+        [Tooltip("Mermi sayısı (Sadece 10 veya 20).")]
         [Min(1)]
         public int BulletCount;
     }
 
-    /// <summary>
-    /// Bir levela ait tum grid verisini tutan ScriptableObject.
-    /// </summary>
     [CreateAssetMenu(fileName = "LevelData_", menuName = "ThisIsBlast/Level Data", order = 0)]
     public class LevelData : ScriptableObject
     {
-        [Header("Grid Boyutlari")]
-        [Tooltip("Grid'in satir sayisi (dikey eksen).")]
-        [Min(1)]
-        public int Row = 5;
+        [Header("Grid Boyutları")]
+        [Min(1)] public int Row = 8;
+        [Min(1)] public int Column = 5;
 
-        [Tooltip("Grid'in sutun sayisi (yatay eksen).")]
-        [Min(1)]
-        public int Column = 5;
-
-        [Header("Shooter Yapilandirmasi")]
-        [Tooltip("Bu levelde kac ShooterBlock slotu olacak.")]
-        [Min(1)]
-        public int SlotCount = 5; // Case geregi varsayilan 5 slot
-
-        [Tooltip("Kuyruktan cikacak ShooterBlock'larin listesi.")]
+        [Header("Shooter Ayarları")]
+        [Min(1)] public int SlotCount = 5;
         public ShooterBlockEntry[] ShooterBlocks;
 
         [Header("Grid Verisi")]
-        [Tooltip("Her eleman bir satiri temsil eder. Rows[0] en ust satir, Rows[Row-1] en alt satirdir.")]
-        public GridRow[] Rows;
+        [SerializeField] private BlockType[] gridData;
 
-        public BlockType GetCell(int row, int col)
+        public BlockType GetCell(int r, int c)
         {
-            if (Rows == null || row < 0 || row >= Rows.Length)
-                return BlockType.Empty;
+            ValidateGrid();
+            if(r < 0 || r >= Row || c < 0 || c >= Column) return BlockType.Empty;
+            return gridData[r * Column + c];
+        }
 
-            if (Rows[row].Cells == null || col < 0 || col >= Rows[row].Cells.Length)
-                return BlockType.Empty;
+        public void SetCell(int r, int c, BlockType type)
+        {
+            ValidateGrid();
+            if(r < 0 || r >= Row || c < 0 || c >= Column) return;
+            gridData[r * Column + c] = type;
+        }
 
-            return Rows[row].Cells[col];
+        public void ValidateGrid()
+        {
+            int requiredLength = Row * Column;
+            if(gridData == null || gridData.Length != requiredLength)
+            {
+                Array.Resize(ref gridData, requiredLength);
+            }
         }
 
         public Dictionary<BlockType, int> GetGridColorCounts()
         {
             var counts = new Dictionary<BlockType, int>();
-            if (Rows == null) return counts;
+            ValidateGrid();
 
-            for (int r = 0; r < Rows.Length; r++)
+            for(int r = 0; r < Row; r++)
             {
-                if (Rows[r].Cells == null) continue;
-                for (int c = 0; c < Rows[r].Cells.Length; c++)
+                for(int c = 0; c < Column; c++)
                 {
-                    var type = Rows[r].Cells[c];
-                    if (type == BlockType.Empty) continue;
+                    var type = GetCell(r, c);
+                    if(type == BlockType.Empty) continue;
 
-                    if (!counts.ContainsKey(type)) counts[type] = 0;
+                    if(!counts.ContainsKey(type)) counts[type] = 0;
                     counts[type]++;
                 }
             }
@@ -90,51 +75,64 @@ namespace Level
         public Dictionary<BlockType, int> GetShooterBulletCounts()
         {
             var counts = new Dictionary<BlockType, int>();
-            if (ShooterBlocks == null) return counts;
+            if(ShooterBlocks == null) return counts;
 
-            for (int i = 0; i < ShooterBlocks.Length; i++)
+            for(int i = 0; i < ShooterBlocks.Length; i++)
             {
                 var entry = ShooterBlocks[i];
-                if (entry.Type == BlockType.Empty) continue;
+                if(entry.Type == BlockType.Empty) continue;
 
-                if (!counts.ContainsKey(entry.Type)) counts[entry.Type] = 0;
+                counts.TryAdd(entry.Type, 0);
                 counts[entry.Type] += entry.BulletCount;
             }
             return counts;
         }
 
 #if UNITY_EDITOR
-        /// <summary>
-        /// Grid'deki blok renklerini sayip her bir renk icin 20 mermilik ShooterCannon paketleri olusturur.
-        /// </summary>
-        public void AutoSyncShootersFixed(int fixedBulletCount = 20)
+        public void AutoSyncShootersDynamic()
         {
+            NormalizeGridCountsToMultiplesOfTen();
+
             var gridCounts  = GetGridColorCounts();
             var shooterList = new List<ShooterBlockEntry>();
             var rng         = new System.Random();
 
-            foreach (var kvp in gridCounts)
+            foreach(var kvp in gridCounts)
             {
                 BlockType color            = kvp.Key;
                 int       totalColorBlocks = kvp.Value;
 
-                if (totalColorBlocks <= 0) continue;
+                if(color == BlockType.Obstacle_Iron || totalColorBlocks <= 0) continue;
 
-                // Grid'deki toplam rengi 20'serlik cannon paketlerine bol
-                int requiredCannons = Mathf.CeilToInt((float)totalColorBlocks / fixedBulletCount);
-
-                for (int i = 0; i < requiredCannons; i++)
+                while(totalColorBlocks > 0)
                 {
-                    shooterList.Add(new ShooterBlockEntry
+                    int bulletCount;
+
+                    if(totalColorBlocks >= 30)
                     {
-                        Type        = color,
-                        BulletCount = fixedBulletCount
-                    });
+                        bulletCount = (rng.Next(0, 2) == 0) ? 10 : 20;
+                    }
+                    else if(totalColorBlocks == 20)
+                    {
+                        bulletCount = 20;
+                    }
+                    else
+                    {
+                        bulletCount = 10;
+                    }
+
+                    shooterList.Add(new ShooterBlockEntry
+                                    {
+                                        Type        = color,
+                                        BulletCount = bulletCount
+                                    });
+
+                    totalColorBlocks -= bulletCount;
                 }
             }
 
-            // Fisher-Yates ile kuyrugu karistir
-            for (int i = shooterList.Count - 1; i > 0; i--)
+            // Fisher-Yates Shuffle
+            for(int i = shooterList.Count - 1; i > 0; i--)
             {
                 int k = rng.Next(i + 1);
                 (shooterList[i], shooterList[k]) = (shooterList[k], shooterList[i]);
@@ -143,38 +141,86 @@ namespace Level
             ShooterBlocks = shooterList.ToArray();
         }
 
-        /// <summary>
-        /// Grid'i kumeleme (Clustering) algoritmasi ile doldurur. 
-        /// Her hucre %75 ihtimalle solundaki veya altindaki komsunun rengini alarak derli toplu adaciklar olusturur.
-        /// </summary>
+        private void NormalizeGridCountsToMultiplesOfTen()
+        {
+            var counts = GetGridColorCounts();
+            var rng    = new System.Random();
+
+            foreach(var kvp in counts)
+            {
+                BlockType color = kvp.Key;
+                int       count = kvp.Value;
+
+                if(color == BlockType.Obstacle_Iron || count == 0) continue;
+
+                int remainder = count % 10;
+                if(remainder == 0) continue;
+
+                if(remainder >= 5)
+                {
+                    int needed = 10 - remainder;
+                    AddBlocksToGrid(color, needed);
+                }
+                else
+                {
+                    RemoveBlocksFromGrid(color, remainder);
+                }
+            }
+        }
+
+        private void AddBlocksToGrid(BlockType color, int amount)
+        {
+            int added = 0;
+            for(int i = 0; i < gridData.Length && added < amount; i++)
+            {
+                if(gridData[i] == BlockType.Empty)
+                {
+                    gridData[i] = color;
+                    added++;
+                }
+            }
+        }
+
+        private void RemoveBlocksFromGrid(BlockType color, int amount)
+        {
+            int removed = 0;
+            for(int i = gridData.Length - 1; i >= 0 && removed < amount; i--)
+            {
+                if(gridData[i] == color)
+                {
+                    gridData[i] = BlockType.Empty;
+                    removed++;
+                }
+            }
+        }
+
         public void GenerateRandomLevelClustered(BlockType[] availableColors = null, float clusterChance = 0.75f)
         {
-            if (availableColors == null || availableColors.Length == 0)
+            if(availableColors == null || availableColors.Length == 0)
             {
                 availableColors = new[] { BlockType.Red, BlockType.Blue, BlockType.Green, BlockType.Yellow, BlockType.Purple };
             }
 
-            Rows = new GridRow[Row];
+            ValidateGrid();
             var rng = new System.Random();
 
-            for (int r = 0; r < Row; r++)
+            for(int r = 0; r < Row; r++)
             {
-                Rows[r].Cells = new BlockType[Column];
-                for (int c = 0; c < Column; c++)
+                for(int c = 0; c < Column; c++)
                 {
                     BlockType selectedColor;
 
-                    if (r == 0 && c == 0)
+                    if(r == 0 && c == 0)
                     {
                         selectedColor = availableColors[rng.Next(0, availableColors.Length)];
                     }
                     else
                     {
                         var neighborColors = new List<BlockType>();
-                        if (c > 0) neighborColors.Add(Rows[r].Cells[c - 1]); // Sol komsu
-                        if (r > 0) neighborColors.Add(Rows[r - 1].Cells[c]); // Alt komsu
+                        if(c > 0) neighborColors.Add(GetCell(r, c - 1));
+                        if(r > 0) neighborColors.Add(GetCell(r - 1, c));
 
-                        if (neighborColors.Count > 0 && rng.NextDouble() < clusterChance)
+                        if(neighborColors.Count > 0 && rng.NextDouble() < clusterChance)
                         {
                             selectedColor = neighborColors[rng.Next(0, neighborColors.Count)];
                         }
@@ -184,74 +230,11 @@ namespace Level
                         }
                     }
 
-                    Rows[r].Cells[c] = selectedColor;
+                    SetCell(r, c, selectedColor);
                 }
             }
 
-            AutoSyncShootersFixed(20);
-        }
-
-        /// <summary>
-        /// Grid boyutunu gunceller. Mevcut blok verisini korur, yeni acilan hucrelere kumeli renk atar.
-        /// </summary>
-        public void ResizeGrid()
-        {
-            var old = Rows;
-            Rows = new GridRow[Row];
-
-            var colorPool = new[] { BlockType.Red, BlockType.Blue, BlockType.Green, BlockType.Yellow, BlockType.Purple };
-            var rng = new System.Random();
-
-            for (int r = 0; r < Row; r++)
-            {
-                Rows[r].Cells = new BlockType[Column];
-                bool isOldRowValid = old != null && r < old.Length && old[r].Cells != null;
-
-                for (int c = 0; c < Column; c++)
-                {
-                    if (isOldRowValid && c < old[r].Cells.Length)
-                    {
-                        Rows[r].Cells[c] = old[r].Cells[c];
-                    }
-                    else
-                    {
-                        // Komsu rengi koruyarak yeni hucre olustur
-                        BlockType color = colorPool[rng.Next(0, colorPool.Length)];
-                        if (c > 0) color = Rows[r].Cells[c - 1];
-                        else if (r > 0 && Rows[r - 1].Cells != null) color = Rows[r - 1].Cells[c];
-
-                        Rows[r].Cells[c] = color;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Grid icindeki 'Empty' kalmis hucreleri komsularinin renkleriyle tamamlarlar.
-        /// </summary>
-        public void FixEmptyCellsWithRandomColors()
-        {
-            if (Rows == null) return;
-
-            var colorPool = new[] { BlockType.Red, BlockType.Blue, BlockType.Green, BlockType.Yellow, BlockType.Purple };
-            var rng = new System.Random();
-
-            for (int r = 0; r < Rows.Length; r++)
-            {
-                if (Rows[r].Cells == null) continue;
-
-                for (int c = 0; c < Rows[r].Cells.Length; c++)
-                {
-                    if (Rows[r].Cells[c] == BlockType.Empty)
-                    {
-                        BlockType color = colorPool[rng.Next(0, colorPool.Length)];
-                        if (c > 0 && Rows[r].Cells[c - 1] != BlockType.Empty) color = Rows[r].Cells[c - 1];
-                        else if (r > 0 && Rows[r - 1].Cells != null && Rows[r - 1].Cells[c] != BlockType.Empty) color = Rows[r - 1].Cells[c];
-
-                        Rows[r].Cells[c] = color;
-                    }
-                }
-            }
+            AutoSyncShootersDynamic();
         }
 #endif
     }

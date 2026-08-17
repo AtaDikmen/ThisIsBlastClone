@@ -13,6 +13,8 @@ namespace Block
         public int  Health     { get; private set; } = 1;
         public bool IsObstacle => Type == BlockType.Obstacle_Iron;
 
+        public bool IsTargeted { get; set; }
+
         public event Action<GridBlock> OnExploded;
 
         public void Setup(BlockType type, int columnIndex)
@@ -40,7 +42,11 @@ namespace Block
             if(Health <= 0)
                 Explode();
             else
-                Tween.ShakeLocalPosition(transform, new Vector3(0.04f, 0.04f, 0f), duration: 0.12f, frequency: 20);
+            {
+                Sequence.Create()
+                        .Group(Tween.ShakeLocalPosition(transform, new Vector3(0.08f, 0.08f, 0f), duration: 0.15f, frequency: 25))
+                        .Group(Tween.PunchScale(transform, new Vector3(-0.1f, -0.1f, 0f), duration: 0.15f));
+            }
         }
 
         public void Explode()

@@ -1,0 +1,235 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using Block;
+using Cysharp.Threading.Tasks;
+using Data;
+using Level;
+using PrimeTween;
+using UnityEngine;
+using VContainer;
+
+namespace Shooter
+{
+    public class ShooterSlotManager : MonoBehaviour
+    {
+        [Header("Slot Layout")]
+        [SerializeField] private GameObject slotPrefab;
+        [SerializeField] private Transform slotsParent;
+        [SerializeField] private float     slotSpacing         = 1.1f;
+        [SerializeField] private Vector3   slotsOriginPosition = new Vector3(0f, -0.8f, 0f);
+
+        [Header("Projectiles")]
+        [SerializeField] private GameObject projectilePrefab;
+
+        private readonly List<ShooterSlot> _slots     = new List<ShooterSlot>();
+        private readonly SemaphoreSlim     _mergeLock = new SemaphoreSlim(1, 1);
+
+        private GridManager    _gridManager;
+        private ShooterQueue   _shooterQueue;
+        private LevelGenerator _levelGenerator;
+
+        [Inject]
+        public void Construct(GridManager gridManager, ShooterQueue shooterQueue, LevelGenerator levelGenerator)
+        {
+            _gridManager    = gridManager;
+            _shooterQueue   = shooterQueue;
+            _levelGenerator = levelGenerator;
+        }
+
+        private void OnDestroy()
+        {
+            if(_shooterQueue != null)
+                _shooterQueue.OnBlockSelected -= HandleBlockSelected;
+
+            _mergeLock?.Dispose();
+            ClearSlots();
+        }
+
+        public void InitializeSlots(int slotCount)
+        {
+            ClearSlots();
+
+            if(slotPrefab == null)
+            {
+                Debug.LogError("[ShooterSlotManager] Slot Prefab missing!", this);
+                return;
+            }
+
+            float totalWidth = (slotCount - 1) * slotSpacing;
+            float startX     = slotsOriginPosition.x - (totalWidth / 2f);
+
+            for(int i = 0; i < slotCount; i++)
+            {
+                var slotPos = new Vector3(startX + (i * slotSpacing), slotsOriginPosition.y, slotsOriginPosition.z);
+                var parent  = slotsParent != null ? slotsParent : transform;
+
+                var slotObj = Instantiate(slotPrefab, slotPos, Quaternion.identity, parent);
+                slotObj.name = $"ShooterSlot_{i}";
+
+                var slotComp                  = slotObj.GetComponent<ShooterSlot>();
+                if(slotComp == null) slotComp = slotObj.AddComponent<ShooterSlot>();
+
+                slotComp.OnSlotFreed += HandleSlotFreed;
+                _slots.Add(slotComp);
+            }
+
+            if(_shooterQueue != null)
+            {
+                _shooterQueue.OnBlockSelected -= HandleBlockSelected;
+                _shooterQueue.OnBlockSelected += HandleBlockSelected;
+            }
+        }
+
+        private void HandleBlockSelected(ShooterBlock block)
+        {
+            ShooterSlot availableSlot = GetFirstEmptySlot();
+            if(availableSlot == null) return;
+
+            _shooterQueue.RemoveFromQueue(block);
+            MoveAndActivateSlotAsync(availableSlot, block).Forget();
+        }
+
+        private async UniTaskVoid MoveAndActivateSlotAsync(ShooterSlot slot, ShooterBlock block)
+        {
+            await slot.PlaceAndAnimateAsync(block, _gridManager, this, projectilePrefab, _levelGenerator.ApplyBlockColor);
+
+            bool didMerge = await TryMergeSlotsAsync(block.Type);
+            if(!didMerge && slot.IsOccupied && slot.OccupiedBy != null)
+            {
+                slot.StartFiringSequence();
+            }
+        }
+
+        private async UniTask<bool> TryMergeSlotsAsync(BlockType targetType)
+        {
+            await _mergeLock.WaitAsync();
+
+            try
+            {
+                var matchingSlots = new List<ShooterSlot>();
+
+                foreach(var slot in _slots)
+                {
+                    if(slot.IsOccupied && slot.OccupiedBy != null && !slot.OccupiedBy.IsEmpty && slot.OccupiedBy.Type == targetType)
+                        matchingSlots.Add(slot);
+                }
+
+                if(matchingSlots.Count < 3) return false;
+
+                var mainSlot   = matchingSlots[0];
+                var secondSlot = matchingSlots[1];
+                var thirdSlot  = matchingSlots[2];
+
+                var mainBlock   = mainSlot.OccupiedBy;
+                var secondBlock = secondSlot.OccupiedBy;
+                var thirdBlock  = thirdSlot.OccupiedBy;
+
+                if(mainBlock == null || secondBlock == null || thirdBlock == null) return false;
+
+                mainSlot.StopFiringSequence();
+                secondSlot.StopFiringSequence();
+                thirdSlot.StopFiringSequence();
+
+                var absorbSequence = Sequence.Create()
+                                             .Group(Tween.Position(secondBlock.transform, mainBlock.transform.position, duration: 0.20f, ease: Ease.InOutCubic))
+                                             .Group(Tween.Scale(secondBlock.transform, Vector3.zero, duration: 0.20f, ease: Ease.InSine))
+                                             .Group(Tween.Position(thirdBlock.transform, mainBlock.transform.position, duration: 0.20f, ease: Ease.InOutCubic))
+                                             .Group(Tween.Scale(thirdBlock.transform, Vector3.zero, duration: 0.20f, ease: Ease.InSine));
+
+                await absorbSequence.ToYieldInstruction();
+
+                if(mainBlock == null) return false;
+
+                int secondBullets = secondBlock != null ? secondBlock.BulletCount : 0;
+                int thirdBullets  = thirdBlock != null ? thirdBlock.BulletCount : 0;
+
+                mainBlock.SetBulletCount(mainBlock.BulletCount + secondBullets + thirdBullets);
+
+                secondSlot.ClearSlotReferenceForMerge();
+                thirdSlot.ClearSlotReferenceForMerge();
+
+                if(secondBlock != null) Destroy(secondBlock.gameObject);
+                if(thirdBlock != null) Destroy(thirdBlock.gameObject);
+
+                secondSlot.NotifySlotFreed();
+                thirdSlot.NotifySlotFreed();
+
+                await mainBlock.PlayMergeJuiceAsync();
+                mainSlot.StartFiringSequence();
+                return true;
+            }
+            finally
+            {
+                _mergeLock.Release();
+            }
+        }
+
+        private ShooterSlot GetFirstEmptySlot()
+        {
+            foreach(var slot in _slots)
+            {
+                if(!slot.IsOccupied) return slot;
+            }
+            return null;
+        }
+
+        private void HandleSlotFreed(ShooterSlot slot)
+        {
+        }
+
+        public bool IsLowestAmmoShooterForColor(ShooterSlot currentSlot, BlockType color)
+        {
+            if(currentSlot == null || !currentSlot.IsOccupied || currentSlot.OccupiedBy == null)
+                return false;
+
+            int currentAmmo = currentSlot.OccupiedBy.BulletCount;
+
+            foreach(var slot in _slots)
+            {
+                if(slot == currentSlot) continue;
+
+                if(slot.IsOccupied && slot.OccupiedBy != null && !slot.OccupiedBy.IsEmpty && slot.OccupiedBy.Type == color)
+                {
+                    int otherAmmo = slot.OccupiedBy.BulletCount;
+
+                    if(otherAmmo < currentAmmo)
+                        return false;
+                    if(otherAmmo == currentAmmo)
+                    {
+                        int currentIndex = _slots.IndexOf(currentSlot);
+                        int otherIndex   = _slots.IndexOf(slot);
+                        if(otherIndex < currentIndex)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true; // En düşük mermili (veya eşitlikte ilk sıradaki) shooter bu
+        }
+
+        public bool IsAllSlotsFull()
+        {
+            foreach(var slot in _slots)
+            {
+                if(!slot.IsOccupied) return false;
+            }
+            return true;
+        }
+
+        public void ClearSlots()
+        {
+            foreach(var slot in _slots)
+            {
+                if(slot != null)
+                {
+                    slot.OnSlotFreed -= HandleSlotFreed;
+                    Destroy(slot.gameObject);
+                }
+            }
+            _slots.Clear();
+        }
+    }
+}

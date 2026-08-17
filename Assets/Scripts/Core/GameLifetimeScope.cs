@@ -12,25 +12,40 @@ namespace Core
 {
     public class GameLifetimeScope : LifetimeScope
     {
-        [SerializeField] private LevelGenerator     _levelGenerator;
-        [SerializeField] private GridManager        _gridManager;
-        [SerializeField] private ShooterQueue       _shooterQueue;
-        [SerializeField] private GameplayController _gameplayController;
+        [Header("Core & Gameplay Controllers")]
+        [SerializeField] private LevelGenerator levelGenerator;
+        [SerializeField] private GridManager        gridManager;
+        [SerializeField] private ShooterQueue       shooterQueue;
+        [SerializeField] private ShooterSlotManager shooterSlotManager;
+        [SerializeField] private GameplayController gameplayController;
+        [SerializeField] private GameFlowController gameFlowController;
+
+        [Header("UI Controllers")]
+        [SerializeField] private MainMenuUIController mainMenuUIController;
+        [SerializeField] private GameplayHUDController gameplayHUDController;
+
+        [Header("Level Data Assets")]
+        [SerializeField] private LevelData[] levels;
 
         protected override void Configure(IContainerBuilder builder)
         {
-            // 1. Singletons / Services
+            // 1. Singletons & Controllers
             builder.Register<SaveService>(Lifetime.Singleton).As<ISaveService>();
-            //builder.Register<AudioService>(Lifetime.Singleton).As<IAudioService>();
+            builder.Register<GameplayStateMachine>(Lifetime.Singleton).As<IGameplayStateMachine>();
 
-            // Scene References
-            builder.RegisterComponent(_levelGenerator);
-            builder.RegisterComponent(_gridManager);
-            builder.RegisterComponent(_shooterQueue);
-            builder.RegisterComponent(_gameplayController);
+            builder.Register<LevelProviderService>(Lifetime.Singleton).WithParameter("levels", levels);
 
-            // UI Controllers
-            //builder.RegisterComponentInHierarchy<GameplayUIController>();
+            // 2. Scene Components / References
+            builder.RegisterComponent(levelGenerator);
+            builder.RegisterComponent(gridManager);
+            builder.RegisterComponent(shooterQueue);
+            builder.RegisterComponent(shooterSlotManager);
+            builder.RegisterComponent(gameplayController);
+            builder.RegisterComponent(gameFlowController);
+
+            // 3. UI Component Registration
+            builder.RegisterComponent(mainMenuUIController);
+            builder.RegisterComponent(gameplayHUDController);
         }
     }
 }
