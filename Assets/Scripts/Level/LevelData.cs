@@ -13,7 +13,7 @@ namespace Level
         [Min(1)] public int       BulletCount;
     }
 
-    [CreateAssetMenu(fileName = "LevelData_", menuName = "ThisIsBlast/Level Data", order = 0)]
+    [CreateAssetMenu(fileName = "LevelData_", menuName = "SO/Level Data", order = 0)]
     public class LevelData : ScriptableObject
     {
         [Header("Grid Boyutları")]

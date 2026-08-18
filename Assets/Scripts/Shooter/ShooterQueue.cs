@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using Audio;
 using Data;
 using Level;
 using PrimeTween;
 using UnityEngine;
+using VContainer;
 
 namespace Shooter
 {
@@ -21,6 +23,14 @@ namespace Shooter
 
         private List<ShooterBlock>[]      _lanes;
         public event Action<ShooterBlock> OnBlockSelected;
+        
+        private IAudioService _audioService;
+        
+        [Inject]
+        public void Construct(IAudioService audioService)
+        {
+            _audioService = audioService;
+        }
 
         public void InitializeQueue(LevelData levelData, Action<GameObject, BlockType> applyColorCallback)
         {
@@ -55,7 +65,7 @@ namespace Shooter
                     shooterComp = blockObj.AddComponent<ShooterBlock>();
 
                 int ammo = entry.BulletCount;
-                shooterComp.Setup(entry.Type, ammo);
+                shooterComp.Setup(entry.Type, ammo, _audioService);
                 shooterComp.OnTapped += HandleBlockTapped;
 
                 int targetLane = i % laneCount;

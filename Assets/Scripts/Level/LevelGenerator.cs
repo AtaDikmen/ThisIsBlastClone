@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using Audio;
 using Block;
 using Data;
 using UnityEngine;
+using VContainer;
 
 namespace Level
 {
@@ -45,6 +47,14 @@ namespace Level
 
         public GameObject DefaultGridBlockPrefab => _defaultGridBlockPrefab;
         public LevelData  CurrentLevelData       { get; private set; }
+
+        private IAudioService _audioService;
+
+        [Inject]
+        public void Construct(IAudioService audioService)
+        {
+            _audioService = audioService;
+        }
 
         private void BuildPrefabLookup()
         {
@@ -142,7 +152,7 @@ namespace Level
                     if(gridBlock == null)
                         gridBlock = blockObj.AddComponent<GridBlock>();
 
-                    gridBlock.Setup(actualColorType, c, r, initialHealth);
+                    gridBlock.Setup(actualColorType, c, r, initialHealth, _audioService);
 
                     gridColumns[c].AddBlock(gridBlock);
                     _spawnedBlocks.Add(blockObj);

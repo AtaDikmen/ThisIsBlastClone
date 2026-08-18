@@ -1,3 +1,4 @@
+using Audio;
 using Cysharp.Threading.Tasks;
 using Gameplay;
 using PrimeTween;
@@ -19,20 +20,23 @@ namespace Core
         private GameplayHUDController _gameplayHUD;
         private GameplayController    _gameplayController;
         private IGameplayStateMachine _stateMachine;
+        private IAudioService         _audioService;
 
         [Inject]
-        public void Construct(MainMenuUIController mainMenuUI, GameplayHUDController gameplayHUD, GameplayController gameplayController, IGameplayStateMachine stateMachine)
+        public void Construct(MainMenuUIController mainMenuUI, GameplayHUDController gameplayHUD, GameplayController gameplayController, IGameplayStateMachine stateMachine, IAudioService audioService)
         {
             _mainMenuUI         = mainMenuUI;
             _gameplayHUD        = gameplayHUD;
             _gameplayController = gameplayController;
             _stateMachine       = stateMachine;
+            _audioService       = audioService;
         }
 
         private void Start()
         {
             _mainMenuUI.OnPlayClicked += HandlePlayClicked;
             _stateMachine.ChangeState(GameState.MainMenu);
+            _audioService.PlayMusic(SoundType.MainMenuMusic);
 
             if(_gameplayHUD != null) _gameplayHUD.gameObject.SetActive(false);
             if(transitionCanvasGroup != null) SetCanvasGroupState(transitionCanvasGroup, false);
@@ -53,6 +57,8 @@ namespace Core
 
         private async UniTaskVoid StartLevelSequenceAsync()
         {
+            _audioService.CrossFadeMusicAsync(SoundType.GameplayMusic, 0.6f).Forget();
+
             if(transitionLoadingBar != null) transitionLoadingBar.fillAmount = 0f;
 
             transitionCanvasGroup.gameObject.SetActive(true);

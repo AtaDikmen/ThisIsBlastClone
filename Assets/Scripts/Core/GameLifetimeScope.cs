@@ -1,3 +1,4 @@
+using Audio;
 using Block;
 using Gameplay;
 using Level;
@@ -19,6 +20,9 @@ namespace Core
         [SerializeField] private ShooterSlotManager shooterSlotManager;
         [SerializeField] private GameplayController gameplayController;
         [SerializeField] private GameFlowController gameFlowController;
+
+        [Header("Audio")]
+        [SerializeField] private AudioManager audioManager;
 
         [Header("UI Controllers")]
         [SerializeField] private MainMenuUIController mainMenuUIController;
@@ -42,6 +46,7 @@ namespace Core
             builder.RegisterComponent(shooterSlotManager);
             builder.RegisterComponent(gameplayController);
             builder.RegisterComponent(gameFlowController);
+            builder.RegisterComponent(audioManager).As<IAudioService>();
 
             // 3. UI Component Registration
             builder.RegisterComponent(mainMenuUIController);

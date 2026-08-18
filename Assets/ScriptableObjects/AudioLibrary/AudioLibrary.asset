@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77aed528f5874d159ce092acf43f896d, type: 3}
+  m_Name: AudioLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::Audio.AudioLibrarySO
+  soundConfigs:
+  - Type: 1
+    Clip: {fileID: 8300000, guid: c4ceba6b3c33c5d4bb9afa0638b1f4eb, type: 3}
+    Volume: 0.5
+    Pitch: 1
+    Cooldown: 0
+  - Type: 2
+    Clip: {fileID: 8300000, guid: 3acdf77eab26693458959ec239d22e21, type: 3}
+    Volume: 0.5
+    Pitch: 1
+    Cooldown: 0
+  - Type: 3
+    Clip: {fileID: 8300000, guid: ae9dfc10156e6a4428a57d4e78e78d0a, type: 3}
+    Volume: 0.5
+    Pitch: 1
+    Cooldown: 0
+  - Type: 4
+    Clip: {fileID: 8300000, guid: 956c0c9214feb8b4c8aa3a7c7526e163, type: 3}
+    Volume: 0.5
+    Pitch: 1
+    Cooldown: 0
+  - Type: 100
+    Clip: {fileID: 8300000, guid: fe601b1f6d197b842b884aad0dc67ea3, type: 3}
+    Volume: 0.2
+    Pitch: 1
+    Cooldown: 0
+  - Type: 101
+    Clip: {fileID: 8300000, guid: 1599b2d2329593144bbd7cce4acffab9, type: 3}
+    Volume: 0.2
+    Pitch: 1
+    Cooldown: 0
+  - Type: 200
+    Clip: {fileID: 8300000, guid: c4ceba6b3c33c5d4bb9afa0638b1f4eb, type: 3}
+    Volume: 0.5
+    Pitch: 1
+    Cooldown: 0
+  - Type: 202
+    Clip: {fileID: 8300000, guid: fc3f5d3cf06251149a6620379f248c64, type: 3}
+    Volume: 0.3
+    Pitch: 1
+    Cooldown: 0
+  - Type: 203
+    Clip: {fileID: 8300000, guid: 70e47df9280f6e64cb2dd201a32a1fa0, type: 3}
+    Volume: 0.7
+    Pitch: 1
+    Cooldown: 0
+  - Type: 204
+    Clip: {fileID: 8300000, guid: 4a6c39fd482d02649a4264c7344f843f, type: 3}
+    Volume: 0.4
+    Pitch: 1
+    Cooldown: 0
+  - Type: 302
+    Clip: {fileID: 8300000, guid: 5f2c00b8737a68f4f8701dfff650b7c3, type: 3}
+    Volume: 0.5
+    Pitch: 1
+    Cooldown: 0

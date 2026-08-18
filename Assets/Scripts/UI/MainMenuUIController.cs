@@ -1,4 +1,5 @@
 using System;
+using Audio;
 using Cysharp.Threading.Tasks;
 using PrimeTween;
 using Services;
@@ -30,13 +31,16 @@ namespace UI
         [SerializeField] private Toggle      sfxToggle;
         [SerializeField] private Toggle      musicToggle;
 
-        private ISaveService _saveService;
-        public event Action  OnPlayClicked;
+        private ISaveService  _saveService;
+        private IAudioService _audioService;
+
+        public event Action OnPlayClicked;
 
         [Inject]
-        public void Construct(ISaveService saveService)
+        public void Construct(ISaveService saveService, IAudioService audioService)
         {
-            _saveService = saveService;
+            _saveService  = saveService;
+            _audioService = audioService;
         }
 
         private void Awake()
@@ -44,6 +48,12 @@ namespace UI
             if(playLevelButton != null) playLevelButton.onClick.AddListener(() => OnPlayClicked?.Invoke());
             if(settingsButton != null) settingsButton.onClick.AddListener(OpenSettings);
             if(closeSettingsButton != null) closeSettingsButton.onClick.AddListener(CloseSettings);
+
+            if(sfxToggle != null)
+                sfxToggle.onValueChanged.AddListener(isOn => _audioService.SetSFXState(!isOn));
+
+            if(musicToggle != null)
+                musicToggle.onValueChanged.AddListener(isOn => _audioService.SetMusicState(!isOn));
         }
 
         private void OnDestroy()

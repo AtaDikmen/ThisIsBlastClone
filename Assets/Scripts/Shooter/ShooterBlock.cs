@@ -1,4 +1,5 @@
 ﻿using System;
+using Audio;
 using Block;
 using Cysharp.Threading.Tasks;
 using Data;
@@ -26,8 +27,9 @@ namespace Shooter
         [SerializeField] private float singleHopDuration  = 0.20f;
         [SerializeField] private float impactSquashAmount = 0.30f;
 
-        private Vector3    _defaultScale = Vector3.one * 0.25f;
-        private Quaternion _defaultRotation;
+        private Vector3       _defaultScale = Vector3.one * 0.25f;
+        private Quaternion    _defaultRotation;
+        private IAudioService _audioService;
 
         private Sequence _activeRecoilSequence;
         private Sequence _activeMergeSequence;
@@ -56,12 +58,13 @@ namespace Shooter
             if(_activeRunAwaySequence.isAlive) _activeRunAwaySequence.Stop();
         }
 
-        public void Setup(BlockType type, int bulletCount)
+        public void Setup(BlockType type, int bulletCount, IAudioService audioService = null)
         {
-            Type        = type;
-            BulletCount = bulletCount;
-            IsInSlot    = false;
-            IsFiring    = false;
+            Type          = type;
+            BulletCount   = bulletCount;
+            IsInSlot      = false;
+            IsFiring      = false;
+            _audioService = audioService;
 
             if(bulletLabel == null)
                 bulletLabel = GetComponentInChildren<TMP_Text>();
@@ -86,7 +89,10 @@ namespace Shooter
         public void HandleClick()
         {
             if(!IsInSlot && !IsFiring)
+            {
+                _audioService?.PlaySFX(SoundType.ShooterTap);
                 OnTapped?.Invoke(this);
+            }
         }
 
         public void FireProjectileAt(GridBlock target, GameObject projectilePrefab, Action<GameObject, BlockType> applyColorCallback, Action onComplete = null)
@@ -98,6 +104,7 @@ namespace Shooter
             }
 
             IsFiring = true;
+            _audioService?.PlaySFX(SoundType.ShooterFire);
             PlayFireRecoil(target.transform.position).Forget();
 
             GameObject bulletObj;
@@ -169,6 +176,8 @@ namespace Shooter
         {
             if(_activeMergeSequence.isAlive) _activeMergeSequence.Stop();
 
+            _audioService?.PlaySFX(SoundType.ShooterMerge);
+
             Vector3 anticipationScale = _defaultScale * 0.88f;
             Vector3 peakScale         = _defaultScale * 1.32f;
 
@@ -184,6 +193,8 @@ namespace Shooter
         {
             if(_activeRecoilSequence.isAlive) _activeRecoilSequence.Stop();
             if(_activeMergeSequence.isAlive) _activeMergeSequence.Stop();
+
+            _audioService?.PlaySFX(SoundType.ShooterRunAway);
 
             transform.SetParent(null);
 

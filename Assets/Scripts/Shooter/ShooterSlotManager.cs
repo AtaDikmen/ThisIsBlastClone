@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Audio;
 using Block;
 using Cysharp.Threading.Tasks;
 using Data;
@@ -28,13 +29,19 @@ namespace Shooter
         private GridManager    _gridManager;
         private ShooterQueue   _shooterQueue;
         private LevelGenerator _levelGenerator;
+        private IAudioService  _audioService;
 
         [Inject]
-        public void Construct(GridManager gridManager, ShooterQueue shooterQueue, LevelGenerator levelGenerator)
+        public void Construct(
+            GridManager    gridManager,
+            ShooterQueue   shooterQueue,
+            LevelGenerator levelGenerator,
+            IAudioService  audioService)
         {
             _gridManager    = gridManager;
             _shooterQueue   = shooterQueue;
             _levelGenerator = levelGenerator;
+            _audioService   = audioService;
         }
 
         private void OnDestroy()
@@ -93,6 +100,8 @@ namespace Shooter
         private async UniTaskVoid MoveAndActivateSlotAsync(ShooterSlot slot, ShooterBlock block)
         {
             await slot.PlaceAndAnimateAsync(block, _gridManager, this, projectilePrefab, _levelGenerator.ApplyBlockColor);
+
+            _audioService?.PlaySFX(SoundType.ShooterSlotLand);
 
             bool didMerge = await TryMergeSlotsAsync(block.Type);
             if(!didMerge && slot.IsOccupied && slot.OccupiedBy != null)
@@ -207,7 +216,7 @@ namespace Shooter
                 }
             }
 
-            return true; // En düşük mermili (veya eşitlikte ilk sıradaki) shooter bu
+            return true;
         }
 
         public bool IsAllSlotsFull()

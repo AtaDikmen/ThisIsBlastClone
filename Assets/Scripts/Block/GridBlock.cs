@@ -1,4 +1,5 @@
 ﻿using System;
+using Audio;
 using Cysharp.Threading.Tasks;
 using Data;
 using PrimeTween;
@@ -33,6 +34,8 @@ namespace Block
 
         public event Action<GridBlock> OnExploded;
 
+        private IAudioService _audioService;
+
         private void Awake()
         {
             _renderer  = GetComponentInChildren<Renderer>();
@@ -57,13 +60,14 @@ namespace Block
             _renderer.SetPropertyBlock(_propBlock);
         }
 
-        public void Setup(BlockType type, int columnIndex, int rowIndex, int initialHealth = 1)
+        public void Setup(BlockType type, int columnIndex, int rowIndex, int initialHealth = 1, IAudioService audioService = null)
         {
-            Type        = type;
-            ColumnIndex = columnIndex;
-            RowIndex    = rowIndex;
-            Health      = initialHealth;
-            IsExploding = false;
+            Type          = type;
+            ColumnIndex   = columnIndex;
+            RowIndex      = rowIndex;
+            Health        = initialHealth;
+            IsExploding   = false;
+            _audioService = audioService;
 
             UpdateHealthLabel();
         }
@@ -87,6 +91,9 @@ namespace Block
 
             IsTargeted = false;
 
+            if(IsArmored && Health > 0)
+                _audioService?.PlaySFX(SoundType.ArmoredHit);
+
             if(Health <= 0)
                 ExplodeAsync().Forget();
             else
@@ -101,6 +108,8 @@ namespace Block
         {
             if(IsExploding) return;
             IsExploding = true;
+            
+            _audioService?.PlaySFX(IsBomb ? SoundType.BombExplode : SoundType.BlockExplode);
 
             if(IsBomb)
             {

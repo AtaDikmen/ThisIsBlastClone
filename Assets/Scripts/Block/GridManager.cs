@@ -1,18 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
+using Audio;
 using Cysharp.Threading.Tasks;
 using Data;
 using PrimeTween;
 using UnityEngine;
+using VContainer;
 
 namespace Block
 {
     public class GridManager : MonoBehaviour
     {
         private readonly List<GridColumn> _columns = new List<GridColumn>();
+        private          IAudioService    _audioService;
 
         public event Action OnLevelComplete;
         public event Action OnFrontRowChanged;
+
+        [Inject]
+        public void Construct(IAudioService audioService)
+        {
+            _audioService = audioService;
+        }
 
         public void RegisterColumns(IEnumerable<GridColumn> columns)
         {
@@ -44,6 +53,8 @@ namespace Block
 
         public async UniTaskVoid ExplodeNeighborsAsync(int colIndex, int rowIndex)
         {
+            _audioService?.PlaySFX(SoundType.BombExplode);
+
             if(Camera.main != null)
                 Tween.ShakeLocalPosition(Camera.main.transform, new Vector3(0.12f, 0.12f, 0f), duration: 0.18f, frequency: 30);
 
@@ -65,10 +76,14 @@ namespace Block
                 }
             }
 
+            float currentPitch = 1.0f;
             foreach(var block in targetBlocks)
             {
                 if(block != null && !block.IsExploding)
                 {
+                    _audioService?.PlaySFX(SoundType.BlockExplode, pitchMultiplier: currentPitch);
+                    currentPitch += 0.04f;
+
                     block.TakeDamage(999);
                     await UniTask.Delay(TimeSpan.FromSeconds(0.035f));
                 }
