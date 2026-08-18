@@ -10,8 +10,8 @@ namespace Data
         Yellow = 4,
         Purple = 5,
 
-        // Birden fazla hasar alabilen engeller
-        Obstacle_Iron = 100
+        Armored = 100,
+        Bomb    = 101,
+        Rainbow = 102
     }
 }
-

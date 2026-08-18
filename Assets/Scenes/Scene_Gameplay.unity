@@ -253,7 +253,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8385e3c772063d443a76a696fba08e79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThisIsBlast.Level.LevelGenerator
-  _gridBlockPrefab: {fileID: 2887440827896768960, guid: 937420d4d8bdc104dbea5a653f4b18e5, type: 3}
+  _defaultGridBlockPrefab: {fileID: 2887440827896768960, guid: 937420d4d8bdc104dbea5a653f4b18e5, type: 3}
+  _specialBlockPrefabs:
+  - Type: 101
+    Prefab: {fileID: 5745861248704436662, guid: fb3fb07c046ba4d4f8840df631387133, type: 3}
+  - Type: 100
+    Prefab: {fileID: 3184030305776955231, guid: ae50def39b40d9c459eb33ccdebd0457, type: 3}
   _cellPadding: 0.1
   _cellSize: 1
   _gridBottomY: -3

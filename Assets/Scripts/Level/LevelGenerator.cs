@@ -7,6 +7,13 @@ using UnityEngine;
 namespace Level
 {
     [Serializable]
+    public struct BlockPrefabEntry
+    {
+        public BlockType  Type;
+        public GameObject Prefab;
+    }
+
+    [Serializable]
     public struct BlockColorEntry
     {
         public BlockType BlockType;
@@ -15,8 +22,11 @@ namespace Level
 
     public class LevelGenerator : MonoBehaviour
     {
-        [Header("Prefabs")]
-        [SerializeField] private GameObject _gridBlockPrefab;
+        [Header("Default Prefab")]
+        [SerializeField] private GameObject _defaultGridBlockPrefab;
+
+        [Header("Special Block Prefabs")]
+        [SerializeField] private BlockPrefabEntry[] _specialBlockPrefabs;
 
         [Header("Grid Layout Settings")]
         [SerializeField] private float _cellPadding = 0.08f;
@@ -26,27 +36,43 @@ namespace Level
         [Header("Color Palette")]
         [SerializeField] private BlockColorEntry[] _colorPalette;
 
-        private                 Dictionary<BlockType, Color> _colorLookup;
-        private                 MaterialPropertyBlock        _propBlock;
-        private readonly static int                          BaseColorId = Shader.PropertyToID("_BaseColor");
+        private                 Dictionary<BlockType, GameObject> _prefabLookup;
+        private                 Dictionary<BlockType, Color>      _colorLookup;
+        private                 MaterialPropertyBlock             _propBlock;
+        private readonly static int                               BaseColorId = Shader.PropertyToID("_BaseColor");
 
         private readonly List<GameObject> _spawnedBlocks = new List<GameObject>();
 
-        public GameObject GridBlockPrefab  => _gridBlockPrefab;
-        public LevelData  CurrentLevelData { get; private set; }
+        public GameObject DefaultGridBlockPrefab => _defaultGridBlockPrefab;
+        public LevelData  CurrentLevelData       { get; private set; }
+
+        private void BuildPrefabLookup()
+        {
+            _prefabLookup = new Dictionary<BlockType, GameObject>();
+            if(_specialBlockPrefabs == null) return;
+
+            foreach(var entry in _specialBlockPrefabs)
+            {
+                if(entry.Prefab != null && !_prefabLookup.ContainsKey(entry.Type))
+                {
+                    _prefabLookup.Add(entry.Type, entry.Prefab);
+                }
+            }
+        }
 
         public List<GridColumn> GenerateGrid(LevelData levelData)
         {
             CurrentLevelData = levelData;
 
-            if(CurrentLevelData == null || _gridBlockPrefab == null)
+            if(CurrentLevelData == null || _defaultGridBlockPrefab == null)
             {
-                Debug.LogError("[LevelGenerator] LevelData veya GridBlockPrefab atanmamış!", this);
+                Debug.LogError("[LevelGenerator] LevelData veya Default GridBlockPrefab atanmamış!", this);
                 return new List<GridColumn>();
             }
 
             ClearLevel();
             BuildColorLookup();
+            BuildPrefabLookup();
 
             int rows    = CurrentLevelData.Row;
             int columns = CurrentLevelData.Column;
@@ -82,16 +108,42 @@ namespace Level
                     float x        = originX + c * stepX;
                     var   worldPos = new Vector3(x, y, 0f);
 
-                    var blockObj = Instantiate(_gridBlockPrefab, worldPos, Quaternion.identity, transform);
+                    var prefabToInstantiate = _defaultGridBlockPrefab;
+                    if(_prefabLookup != null && _prefabLookup.TryGetValue(cellType, out var specialPrefab))
+                    {
+                        if(specialPrefab != null)
+                            prefabToInstantiate = specialPrefab;
+                    }
+
+                    var blockObj = Instantiate(prefabToInstantiate, worldPos, Quaternion.identity, transform);
                     blockObj.name = $"GridBlock_{cellType}_{r}_{c}";
 
-                    ApplyBlockColor(blockObj, cellType);
+                    int       initialHealth   = 1;
+                    BlockType actualColorType = cellType;
+
+                    if(cellType == BlockType.Armored)
+                    {
+                        initialHealth = 20;
+
+                        BlockType[] baseColors = { BlockType.Red, BlockType.Blue, BlockType.Green, BlockType.Yellow, BlockType.Purple };
+                        actualColorType = baseColors[UnityEngine.Random.Range(0, baseColors.Length)];
+
+                        ApplyBlockColor(blockObj, actualColorType);
+                    }
+                    else if(cellType == BlockType.Rainbow)
+                    {
+                    }
+                    else if(cellType != BlockType.Bomb)
+                    {
+                        ApplyBlockColor(blockObj, actualColorType);
+                    }
 
                     var gridBlock = blockObj.GetComponent<GridBlock>();
                     if(gridBlock == null)
                         gridBlock = blockObj.AddComponent<GridBlock>();
 
-                    gridBlock.Setup(cellType, c);
+                    gridBlock.Setup(actualColorType, c, r, initialHealth);
+
                     gridColumns[c].AddBlock(gridBlock);
                     _spawnedBlocks.Add(blockObj);
                 }
@@ -113,12 +165,11 @@ namespace Level
         {
             _colorLookup = new Dictionary<BlockType, Color>
                            {
-                               [BlockType.Red]           = new Color(0.90f, 0.20f, 0.20f),
-                               [BlockType.Blue]          = new Color(0.20f, 0.45f, 0.90f),
-                               [BlockType.Green]         = new Color(0.20f, 0.75f, 0.30f),
-                               [BlockType.Yellow]        = new Color(0.98f, 0.82f, 0.10f),
-                               [BlockType.Purple]        = new Color(0.60f, 0.20f, 0.85f),
-                               [BlockType.Obstacle_Iron] = new Color(0.55f, 0.55f, 0.60f)
+                               [BlockType.Red]    = new Color(0.90f, 0.20f, 0.20f),
+                               [BlockType.Blue]   = new Color(0.20f, 0.45f, 0.90f),
+                               [BlockType.Green]  = new Color(0.20f, 0.75f, 0.30f),
+                               [BlockType.Yellow] = new Color(0.98f, 0.82f, 0.10f),
+                               [BlockType.Purple] = new Color(0.60f, 0.20f, 0.85f)
                            };
 
             if(_colorPalette != null && _colorPalette.Length > 0)

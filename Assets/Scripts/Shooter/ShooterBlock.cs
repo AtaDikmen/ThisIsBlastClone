@@ -125,7 +125,7 @@ namespace Shooter
             proj.Launch(target, () =>
             {
                 if(target != null)
-                    target.Explode();
+                    target.TakeDamage();
 
                 IsFiring = false;
                 onComplete?.Invoke();
@@ -169,16 +169,12 @@ namespace Shooter
         {
             if(_activeMergeSequence.isAlive) _activeMergeSequence.Stop();
 
-            // Yumuşak ve dengeli ölçekleme hedefleri
-            Vector3 anticipationScale = _defaultScale * 0.88f; // Hafif, tatlı bir içe büzülme
-            Vector3 peakScale         = _defaultScale * 1.32f; // Organik tepe büyüklüğü
+            Vector3 anticipationScale = _defaultScale * 0.88f;
+            Vector3 peakScale         = _defaultScale * 1.32f;
 
             _activeMergeSequence = Sequence.Create()
-                                           // 1. Hazırlık (Anticipation): Akıcı hafif içe esneme
                                            .Chain(Tween.Scale(transform, anticipationScale, duration: 0.10f, ease: Ease.OutSine))
-                                           // 2. Genleşme (Swell): Yarıçapın akıcı bir şekilde büyümesi
                                            .Chain(Tween.Scale(transform, peakScale, duration: 0.22f, ease: Ease.OutCubic))
-                                           // 3. Oturma (Settle): Sarsıntısız, yumuşakça orijinal boyuta dönme
                                            .Chain(Tween.Scale(transform, _defaultScale, duration: 0.20f, ease: Ease.OutQuad));
 
             await _activeMergeSequence.ToYieldInstruction();

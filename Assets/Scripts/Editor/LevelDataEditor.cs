@@ -12,6 +12,10 @@ namespace Editor
         private LevelData _data;
         private BlockType _selectedPaintType = BlockType.Red;
 
+        private int _genBombCount    = 1;
+        private int _genArmoredCount = 1;
+        private int _genRainbowCount = 1;
+
         private void OnEnable()
         {
             _data = (LevelData)target;
@@ -41,7 +45,7 @@ namespace Editor
             EditorGUILayout.BeginVertical("box");
             EditorGUILayout.LabelField("🎨 Grid Boyama", EditorStyles.boldLabel);
 
-            _selectedPaintType = (BlockType)EditorGUILayout.EnumPopup("Fırça Rengi:", _selectedPaintType);
+            _selectedPaintType = (BlockType)EditorGUILayout.EnumPopup("Fırça Rengi / Özel Blok:", _selectedPaintType);
             EditorGUILayout.Space(4);
 
             for(int r = 0; r < _data.Row; r++)
@@ -52,7 +56,7 @@ namespace Editor
                     BlockType currentType = _data.GetCell(r, c);
                     GUI.backgroundColor = GetColorForBlockType(currentType);
 
-                    if(GUILayout.Button($"{currentType}", GUILayout.Width(60), GUILayout.Height(26)))
+                    if(GUILayout.Button($"{currentType}", GUILayout.Width(65), GUILayout.Height(26)))
                     {
                         Undo.RecordObject(_data, "Paint Grid Cell");
                         _data.SetCell(r, c, _selectedPaintType);
@@ -74,7 +78,8 @@ namespace Editor
             int totalGridBlocks = 0;
             foreach(var kvp in gridCounts)
             {
-                if(kvp.Key != BlockType.Obstacle_Iron) totalGridBlocks += kvp.Value;
+                if(kvp.Key != BlockType.Armored && kvp.Key != BlockType.Bomb && kvp.Key != BlockType.Rainbow)
+                    totalGridBlocks += kvp.Value;
             }
 
             int totalBullets                                      = 0;
@@ -84,7 +89,7 @@ namespace Editor
 
             EditorGUILayout.BeginVertical("box");
             EditorGUILayout.LabelField("📊 Denge Durumu", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField($"Grid Blok: {totalGridBlocks}  |  Toplam Mermi: {totalBullets}");
+            EditorGUILayout.LabelField($"Normal Grid Blok: {totalGridBlocks}  |  Toplam Mermi: {totalBullets}");
 
             if(isBalanced)
             {
@@ -103,22 +108,36 @@ namespace Editor
         private void DrawToolsSection()
         {
             EditorGUILayout.BeginVertical("box");
-            EditorGUILayout.LabelField("🛠️ Hızlı Araçlar", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("🛠️ Rastgele Level Üretici", EditorStyles.boldLabel);
+
+            _genBombCount    = EditorGUILayout.IntSlider("💣 Bomba Adedi:", _genBombCount, 0, 10);
+            _genArmoredCount = EditorGUILayout.IntSlider("🛡️ Zırhlı (Armored) Adedi:", _genArmoredCount, 0, 10);
+            _genRainbowCount = EditorGUILayout.IntSlider("🌈 Rainbow Adedi:", _genRainbowCount, 0, 10);
+
+            EditorGUILayout.Space(4);
 
             GUI.backgroundColor = new Color(0.9f, 0.6f, 1f);
-            if(GUILayout.Button("🎲 Rastgele Level Üret", GUILayout.Height(26)))
+            if(GUILayout.Button("🎲 Ayarlara Göre Level Üret", GUILayout.Height(28)))
             {
-                Undo.RecordObject(_data, "Generate Clustered Random Level");
+                Undo.RecordObject(_data, "Generate Custom Random Level");
                 var pool = new[] { BlockType.Red, BlockType.Blue, BlockType.Green, BlockType.Yellow, BlockType.Purple };
-                _data.GenerateRandomLevelClustered(pool, clusterChance: 0.75f);
+
+                _data.GenerateRandomLevelClustered(
+                    availableColors: pool,
+                    clusterChance: 0.75f,
+                    bombCount: _genBombCount,
+                    armoredCount: _genArmoredCount,
+                    rainbowCount: _genRainbowCount
+                );
+
                 EditorUtility.SetDirty(_data);
             }
             GUI.backgroundColor = Color.white;
 
-            EditorGUILayout.Space(2);
+            EditorGUILayout.Space(4);
 
             GUI.backgroundColor = new Color(0.4f, 0.8f, 1f);
-            if(GUILayout.Button("⚡ Shooter Eşitle (10/20 Mermi)", GUILayout.Height(26)))
+            if(GUILayout.Button("⚡ Shooter Eşitle", GUILayout.Height(24)))
             {
                 Undo.RecordObject(_data, "Auto Sync Shooters");
                 _data.AutoSyncShootersDynamic();
@@ -131,13 +150,15 @@ namespace Editor
 
         private Color GetColorForBlockType(BlockType type) => type switch
                                                               {
-                                                                  BlockType.Red           => new Color(0.9f, 0.35f, 0.35f),
-                                                                  BlockType.Blue          => new Color(0.35f, 0.55f, 0.95f),
-                                                                  BlockType.Green         => new Color(0.35f, 0.85f, 0.45f),
-                                                                  BlockType.Yellow        => new Color(0.95f, 0.85f, 0.25f),
-                                                                  BlockType.Purple        => new Color(0.7f, 0.35f, 0.85f),
-                                                                  BlockType.Obstacle_Iron => new Color(0.45f, 0.45f, 0.5f),
-                                                                  _                       => Color.gray
+                                                                  BlockType.Red     => new Color(0.9f, 0.35f, 0.35f),
+                                                                  BlockType.Blue    => new Color(0.35f, 0.55f, 0.95f),
+                                                                  BlockType.Green   => new Color(0.35f, 0.85f, 0.45f),
+                                                                  BlockType.Yellow  => new Color(0.95f, 0.85f, 0.25f),
+                                                                  BlockType.Purple  => new Color(0.7f, 0.35f, 0.85f),
+                                                                  BlockType.Armored => new Color(0.3f, 0.3f, 0.35f),
+                                                                  BlockType.Bomb    => new Color(0.85f, 0.2f, 0.1f),
+                                                                  BlockType.Rainbow => new Color(0.95f, 0.4f, 0.8f),
+                                                                  _                 => Color.gray
                                                               };
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if UNITY_EDITOR
+using System;
 using System.Collections.Generic;
 using Data;
 using UnityEngine;
@@ -8,12 +9,8 @@ namespace Level
     [Serializable]
     public struct ShooterBlockEntry
     {
-        [Tooltip("Shooter bloğun rengi/tipi.")]
-        public BlockType Type;
-
-        [Tooltip("Mermi sayısı (Sadece 10 veya 20).")]
-        [Min(1)]
-        public int BulletCount;
+        public          BlockType Type;
+        [Min(1)] public int       BulletCount;
     }
 
     [CreateAssetMenu(fileName = "LevelData_", menuName = "ThisIsBlast/Level Data", order = 0)]
@@ -88,7 +85,6 @@ namespace Level
             return counts;
         }
 
-#if UNITY_EDITOR
         public void AutoSyncShootersDynamic()
         {
             NormalizeGridCountsToMultiplesOfTen();
@@ -102,24 +98,13 @@ namespace Level
                 BlockType color            = kvp.Key;
                 int       totalColorBlocks = kvp.Value;
 
-                if(color == BlockType.Obstacle_Iron || totalColorBlocks <= 0) continue;
+                // Özel bloklar ve engeller shooter eşitlemesine dahil edilmez
+                if(color == BlockType.Armored || color == BlockType.Bomb || color == BlockType.Rainbow || totalColorBlocks <= 0)
+                    continue;
 
                 while(totalColorBlocks > 0)
                 {
-                    int bulletCount;
-
-                    if(totalColorBlocks >= 30)
-                    {
-                        bulletCount = (rng.Next(0, 2) == 0) ? 10 : 20;
-                    }
-                    else if(totalColorBlocks == 20)
-                    {
-                        bulletCount = 20;
-                    }
-                    else
-                    {
-                        bulletCount = 10;
-                    }
+                    int bulletCount = (totalColorBlocks >= 30) ? ((rng.Next(0, 2) == 0) ? 10 : 20) : ((totalColorBlocks == 20) ? 20 : 10);
 
                     shooterList.Add(new ShooterBlockEntry
                                     {
@@ -131,7 +116,6 @@ namespace Level
                 }
             }
 
-            // Fisher-Yates Shuffle
             for(int i = shooterList.Count - 1; i > 0; i--)
             {
                 int k = rng.Next(i + 1);
@@ -144,27 +128,22 @@ namespace Level
         private void NormalizeGridCountsToMultiplesOfTen()
         {
             var counts = GetGridColorCounts();
-            var rng    = new System.Random();
 
             foreach(var kvp in counts)
             {
                 BlockType color = kvp.Key;
                 int       count = kvp.Value;
 
-                if(color == BlockType.Obstacle_Iron || count == 0) continue;
+                if(color == BlockType.Armored || color == BlockType.Bomb || color == BlockType.Rainbow || count == 0)
+                    continue;
 
                 int remainder = count % 10;
                 if(remainder == 0) continue;
 
                 if(remainder >= 5)
-                {
-                    int needed = 10 - remainder;
-                    AddBlocksToGrid(color, needed);
-                }
+                    AddBlocksToGrid(color, 10 - remainder);
                 else
-                {
                     RemoveBlocksFromGrid(color, remainder);
-                }
             }
         }
 
@@ -184,17 +163,22 @@ namespace Level
         private void RemoveBlocksFromGrid(BlockType color, int amount)
         {
             int removed = 0;
-            for(int i = gridData.Length - 1; i >= 0 && removed < amount; i--)
+
+            for(int r = 0; r < Row && removed < amount; r++)
             {
-                if(gridData[i] == color)
+                for(int c = 0; c < Column && removed < amount; c++)
                 {
-                    gridData[i] = BlockType.Empty;
-                    removed++;
+                    if(GetCell(r, c) == color)
+                    {
+                        SetCell(r, c, BlockType.Empty);
+                        removed++;
+                    }
                 }
             }
         }
 
-        public void GenerateRandomLevelClustered(BlockType[] availableColors = null, float clusterChance = 0.75f)
+#if UNITY_EDITOR
+        public void GenerateRandomLevelClustered(BlockType[] availableColors = null, float clusterChance = 0.75f, int bombCount = 0, int armoredCount = 0, int rainbowCount = 0)
         {
             if(availableColors == null || availableColors.Length == 0)
             {
@@ -221,17 +205,48 @@ namespace Level
                         if(r > 0) neighborColors.Add(GetCell(r - 1, c));
 
                         if(neighborColors.Count > 0 && rng.NextDouble() < clusterChance)
-                        {
                             selectedColor = neighborColors[rng.Next(0, neighborColors.Count)];
-                        }
                         else
-                        {
                             selectedColor = availableColors[rng.Next(0, availableColors.Length)];
-                        }
                     }
 
                     SetCell(r, c, selectedColor);
                 }
+            }
+
+            var allPositions = new List<(int r, int c)>();
+            for(int r = 0; r < Row; r++)
+            {
+                for(int c = 0; c < Column; c++)
+                {
+                    allPositions.Add((r, c));
+                }
+            }
+
+            for(int i = allPositions.Count - 1; i > 0; i--)
+            {
+                int k = rng.Next(i + 1);
+                (allPositions[i], allPositions[k]) = (allPositions[k], allPositions[i]);
+            }
+
+            int currentIdx = 0;
+
+            for(int i = 0; i < bombCount && currentIdx < allPositions.Count; i++, currentIdx++)
+            {
+                var pos = allPositions[currentIdx];
+                SetCell(pos.r, pos.c, BlockType.Bomb);
+            }
+
+            for(int i = 0; i < armoredCount && currentIdx < allPositions.Count; i++, currentIdx++)
+            {
+                var pos = allPositions[currentIdx];
+                SetCell(pos.r, pos.c, BlockType.Armored);
+            }
+
+            for(int i = 0; i < rainbowCount && currentIdx < allPositions.Count; i++, currentIdx++)
+            {
+                var pos = allPositions[currentIdx];
+                SetCell(pos.r, pos.c, BlockType.Rainbow);
             }
 
             AutoSyncShootersDynamic();
@@ -239,3 +254,4 @@ namespace Level
 #endif
     }
 }
+#endif

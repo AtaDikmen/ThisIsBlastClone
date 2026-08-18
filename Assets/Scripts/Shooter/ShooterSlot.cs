@@ -135,8 +135,8 @@ namespace Shooter
                 else
                 {
                     OccupiedBy.SetFiringState(false);
-                    await UniTask.Delay(TimeSpan.FromSeconds(0.06f), cancellationToken: ct);
-                    await CheckAndFireSequenceAsync(ct);
+                    await UniTask.Delay(TimeSpan.FromSeconds(0.08f), cancellationToken: ct);
+                    CheckAndFireSequenceAsync(ct).Forget();
                 }
             }
         }
