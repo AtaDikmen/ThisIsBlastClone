@@ -39,6 +39,7 @@ namespace Core
 
         private void Start()
         {
+            PrimeTweenConfig.warnEndValueEqualsCurrent = false;
             SubscribeEvents();
 
             _stateMachine.ChangeState(GameState.MainMenu);

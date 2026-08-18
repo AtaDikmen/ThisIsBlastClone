@@ -85,7 +85,11 @@ namespace Shooter
                 await AnimateToSlotAsync(block.transform, transform.position, _cts.Token);
 
                 if(block != null)
+                {
                     block.transform.SetParent(transform);
+                    block.transform.localPosition = Vector3.zero;
+                    block.transform.localRotation = Quaternion.identity;
+                }
             }
             finally
             {
@@ -101,6 +105,8 @@ namespace Shooter
             Vector3 midPoint   = Vector3.Lerp(startPos, destination, 0.5f);
             float   sideOffset = (startPos.x < destination.x) ? 0.35f : -0.35f;
             midPoint.x += sideOffset;
+
+            midPoint.z = destination.z;
 
             var sequence = Sequence.Create()
                                    .Group(Tween.Position(target, midPoint, duration: 0.12f, ease: Ease.OutQuad))
