@@ -1,5 +1,4 @@
-﻿#if UNITY_EDITOR
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Data;
 using UnityEngine;
@@ -254,4 +253,3 @@ namespace Level
 #endif
     }
 }
-#endif
