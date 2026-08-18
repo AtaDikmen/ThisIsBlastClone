@@ -12,42 +12,69 @@ namespace Core
     public class GameFlowController : MonoBehaviour
     {
         [Header("Transition / Loading Overlay")]
-        [SerializeField] private CanvasGroup transitionCanvasGroup;
+        [SerializeField] private GameObject transitionOverlay;
         [SerializeField] private Image transitionLoadingBar;
-        [SerializeField] private float fakeLoadingDuration = 1.5f;
+        [SerializeField] private float loadingDuration = 1.0f;
 
-        private MainMenuUIController  _mainMenuUI;
-        private GameplayHUDController _gameplayHUD;
+        private UIManager             _uiManager;
         private GameplayController    _gameplayController;
         private IGameplayStateMachine _stateMachine;
         private IAudioService         _audioService;
+        private EnvironmentManager    _environmentManager;
 
         [Inject]
-        public void Construct(MainMenuUIController mainMenuUI, GameplayHUDController gameplayHUD, GameplayController gameplayController, IGameplayStateMachine stateMachine, IAudioService audioService)
+        public void Construct(
+            UIManager             uiManager,
+            GameplayController    gameplayController,
+            IGameplayStateMachine stateMachine,
+            IAudioService         audioService,
+            EnvironmentManager    environmentManager)
         {
-            _mainMenuUI         = mainMenuUI;
-            _gameplayHUD        = gameplayHUD;
+            _uiManager          = uiManager;
             _gameplayController = gameplayController;
             _stateMachine       = stateMachine;
             _audioService       = audioService;
+            _environmentManager = environmentManager;
         }
 
         private void Start()
         {
-            _mainMenuUI.OnPlayClicked += HandlePlayClicked;
+            SubscribeEvents();
+
             _stateMachine.ChangeState(GameState.MainMenu);
-            _audioService.PlayMusic(SoundType.MainMenuMusic);
+            _audioService?.PlayMusic(SoundType.MainMenuMusic);
 
-            if(_gameplayHUD != null) _gameplayHUD.gameObject.SetActive(false);
-            if(transitionCanvasGroup != null) SetCanvasGroupState(transitionCanvasGroup, false);
-
-            _mainMenuUI.ShowMenu();
+            SetLoadingState(false);
+            ShowInitialMainMenu();
         }
 
         private void OnDestroy()
         {
-            if(_mainMenuUI != null)
-                _mainMenuUI.OnPlayClicked -= HandlePlayClicked;
+            UnsubscribeEvents();
+        }
+
+        private void SubscribeEvents()
+        {
+            if(_uiManager != null)
+            {
+                _uiManager.OnPlayClicked     += HandlePlayClicked;
+                _uiManager.OnMainMenuClicked += HandleMainMenuClicked;
+            }
+        }
+
+        private void UnsubscribeEvents()
+        {
+            if(_uiManager != null)
+            {
+                _uiManager.OnPlayClicked     -= HandlePlayClicked;
+                _uiManager.OnMainMenuClicked -= HandleMainMenuClicked;
+            }
+        }
+
+        private void ShowInitialMainMenu()
+        {
+            _environmentManager?.ActivateMainMenuEnvironment();
+            _uiManager.ShowMainMenu();
         }
 
         private void HandlePlayClicked()
@@ -55,47 +82,74 @@ namespace Core
             StartLevelSequenceAsync().Forget();
         }
 
-        private async UniTaskVoid StartLevelSequenceAsync()
+        private void HandleMainMenuClicked()
         {
-            _audioService.CrossFadeMusicAsync(SoundType.GameplayMusic, 0.6f).Forget();
-
-            if(transitionLoadingBar != null) transitionLoadingBar.fillAmount = 0f;
-
-            transitionCanvasGroup.gameObject.SetActive(true);
-            transitionCanvasGroup.interactable   = true;
-            transitionCanvasGroup.blocksRaycasts = true;
-
-            if(Mathf.Abs(transitionCanvasGroup.alpha - 1f) > 0.01f)
-                await Tween.Alpha(transitionCanvasGroup, endValue: 1f, duration: 0.25f).ToYieldInstruction();
-
-            await _mainMenuUI.HideMenuAsync();
-
-            if(transitionLoadingBar != null)
-            {
-                await Tween.UIFillAmount(transitionLoadingBar, endValue: 1f, duration: fakeLoadingDuration, ease: Ease.InOutQuad)
-                           .ToYieldInstruction();
-            }
-
-            _gameplayController.InitializeLevel();
-
-            if(_gameplayHUD != null) _gameplayHUD.gameObject.SetActive(true);
-
-            transitionCanvasGroup.blocksRaycasts = false;
-            transitionCanvasGroup.interactable   = false;
-
-            if(Mathf.Abs(transitionCanvasGroup.alpha - 0f) > 0.01f)
-                await Tween.Alpha(transitionCanvasGroup, endValue: 0f, duration: 0.3f).ToYieldInstruction();
-
-            transitionCanvasGroup.gameObject.SetActive(false);
-            _stateMachine.ChangeState(GameState.WaitingForInput);
+            ReturnToMainMenuSequenceAsync().Forget();
         }
 
-        private void SetCanvasGroupState(CanvasGroup group, bool active)
+        private async UniTaskVoid StartLevelSequenceAsync()
         {
-            if(group == null) return;
-            group.alpha          = active ? 1f : 0f;
-            group.interactable   = active;
-            group.blocksRaycasts = active;
+            try
+            {
+                _audioService?.CrossFadeMusicAsync(SoundType.GameplayMusic, 0.5f).Forget();
+
+                SetLoadingState(true);
+
+                await PlayLoadingAnimationAsync();
+
+                _uiManager.ResetAllPanels();
+                _environmentManager?.ActivateGameplayEnvironment();
+                _gameplayController.InitializeLevel();
+            }
+            finally
+            {
+                SetLoadingState(false);
+                _stateMachine.ChangeState(GameState.WaitingForInput);
+            }
+        }
+
+        private async UniTaskVoid ReturnToMainMenuSequenceAsync()
+        {
+            try
+            {
+                _audioService?.CrossFadeMusicAsync(SoundType.MainMenuMusic, 0.5f).Forget();
+
+                SetLoadingState(true);
+
+                _gameplayController.ClearCurrentLevel();
+
+                await PlayLoadingAnimationAsync();
+
+                _environmentManager?.ActivateMainMenuEnvironment();
+                _uiManager.ShowMainMenu();
+            }
+            finally
+            {
+                SetLoadingState(false);
+                _stateMachine.ChangeState(GameState.MainMenu);
+            }
+        }
+
+        private async UniTask PlayLoadingAnimationAsync()
+        {
+            if(transitionLoadingBar != null)
+            {
+                transitionLoadingBar.fillAmount = 0f;
+                await Tween.UIFillAmount(transitionLoadingBar, endValue: 1f, duration: loadingDuration, ease: Ease.InOutQuad)
+                           .ToYieldInstruction();
+            }
+            else
+            {
+                await UniTask.Delay((int)(loadingDuration * 1000));
+            }
+        }
+
+        private void SetLoadingState(bool active)
+        {
+            if(transitionOverlay != null)
+            {
+                transitionOverlay.SetActive(active);
+            }
         }
     }
 }

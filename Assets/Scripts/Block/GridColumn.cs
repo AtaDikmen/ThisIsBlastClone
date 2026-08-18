@@ -9,18 +9,32 @@ namespace Block
     {
         private readonly List<GridBlock> _blocks = new List<GridBlock>();
 
-        public int ColumnIndex { get; }
+        public  int     ColumnIndex { get; }
         private Vector3 _basePosition;
         private Vector3 _stepOffset = Vector3.up * 0.3f;
-        private bool _isMappingSet;
+        private bool    _isMappingSet;
 
         public event Action<GridColumn> OnFrontChanged;
         public event Action<GridColumn> OnColumnEmpty;
 
         public GridBlock FrontBlock => _blocks.Count > 0 ? _blocks[0] : null;
         public BlockType FrontType  => FrontBlock?.Type ?? BlockType.Empty;
-        public bool IsEmpty         => _blocks.Count == 0;
-        public int Count            => _blocks.Count;
+        public bool      IsEmpty    => _blocks.Count == 0;
+        public int       Count      => _blocks.Count;
+
+        public int ActiveBlockCount
+        {
+            get
+            {
+                int count = 0;
+                foreach(var block in _blocks)
+                {
+                    if(block != null && !block.IsExploding)
+                        count++;
+                }
+                return count;
+            }
+        }
 
         public GridColumn(int columnIndex)
         {
@@ -42,9 +56,9 @@ namespace Block
 
         public GridBlock GetBlockAtRow(int rowIndex)
         {
-            foreach (var block in _blocks)
+            foreach(var block in _blocks)
             {
-                if (block != null && block.RowIndex == rowIndex)
+                if(block != null && block.RowIndex == rowIndex)
                     return block;
             }
             return null;
@@ -57,7 +71,7 @@ namespace Block
 
             RefreshBlockPositions();
 
-            if (IsEmpty)
+            if(IsEmpty)
                 OnColumnEmpty?.Invoke(this);
             else
                 OnFrontChanged?.Invoke(this);
@@ -65,12 +79,12 @@ namespace Block
 
         private void RefreshBlockPositions()
         {
-            if (!_isMappingSet) return;
+            if(!_isMappingSet) return;
 
-            for (int i = 0; i < _blocks.Count; i++)
+            for(int i = 0; i < _blocks.Count; i++)
             {
                 var block = _blocks[i];
-                if (block != null)
+                if(block != null)
                 {
                     Vector3 targetPos = _basePosition + (float)i * _stepOffset;
                     block.SlideTo(targetPos, 0.12f);

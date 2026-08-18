@@ -20,26 +20,24 @@ namespace Core
         [SerializeField] private ShooterSlotManager shooterSlotManager;
         [SerializeField] private GameplayController gameplayController;
         [SerializeField] private GameFlowController gameFlowController;
+        [SerializeField] private EnvironmentManager environmentManager;
 
         [Header("Audio")]
         [SerializeField] private AudioManager audioManager;
 
-        [Header("UI Controllers")]
-        [SerializeField] private MainMenuUIController mainMenuUIController;
-        [SerializeField] private GameplayHUDController gameplayHUDController;
+        [Header("UI Controller")]
+        [SerializeField] private UIManager uiManager;
 
         [Header("Level Data Assets")]
         [SerializeField] private LevelData[] levels;
 
         protected override void Configure(IContainerBuilder builder)
         {
-            // 1. Singletons & Controllers
             builder.Register<SaveService>(Lifetime.Singleton).As<ISaveService>();
             builder.Register<GameplayStateMachine>(Lifetime.Singleton).As<IGameplayStateMachine>();
 
             builder.Register<LevelProviderService>(Lifetime.Singleton).WithParameter("levels", levels);
 
-            // 2. Scene Components / References
             builder.RegisterComponent(levelGenerator);
             builder.RegisterComponent(gridManager);
             builder.RegisterComponent(shooterQueue);
@@ -47,10 +45,9 @@ namespace Core
             builder.RegisterComponent(gameplayController);
             builder.RegisterComponent(gameFlowController);
             builder.RegisterComponent(audioManager).As<IAudioService>();
+            builder.RegisterComponent(environmentManager);
 
-            // 3. UI Component Registration
-            builder.RegisterComponent(mainMenuUIController);
-            builder.RegisterComponent(gameplayHUDController);
+            builder.RegisterComponent(uiManager);
         }
     }
 }

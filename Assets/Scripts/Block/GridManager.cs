@@ -106,5 +106,14 @@ namespace Block
                 OnLevelComplete?.Invoke();
             }
         }
+
+        public int GetRemainingBlockCount()
+        {
+            int total = 0;
+            foreach(var col in _columns)
+                if(col != null)
+                    total += col.ActiveBlockCount;
+            return total;
+        }
     }
 }

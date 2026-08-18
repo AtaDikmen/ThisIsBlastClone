@@ -240,5 +240,32 @@ namespace Shooter
             }
             _slots.Clear();
         }
+
+        public bool HasAnyValidTargetOnGrid(GridManager gridManager)
+        {
+            if(gridManager == null) return false;
+
+            foreach(var slot in _slots)
+            {
+                if(slot.IsOccupied && slot.OccupiedBy != null && !slot.OccupiedBy.IsEmpty)
+                {
+                    var target = gridManager.GetAvailableFrontBlock(slot.OccupiedBy.Type);
+                    if(target != null)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsAnyShooterFiring()
+        {
+            foreach(var slot in _slots)
+            {
+                if(slot.IsOccupied && slot.OccupiedBy != null && slot.OccupiedBy.IsFiring)
+                    return true;
+            }
+            return false;
+        }
     }
 }
