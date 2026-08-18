@@ -57,8 +57,10 @@ namespace Core
         {
             if(_uiManager != null)
             {
-                _uiManager.OnPlayClicked     += HandlePlayClicked;
-                _uiManager.OnMainMenuClicked += HandleMainMenuClicked;
+                _uiManager.OnPlayClicked      += HandlePlayClicked;
+                _uiManager.OnMainMenuClicked  += HandleMainMenuClicked;
+                _uiManager.OnRetryClicked     += HandleRetryClicked;
+                _uiManager.OnNextLevelClicked += HandleNextLevelClicked;
             }
         }
 
@@ -66,8 +68,10 @@ namespace Core
         {
             if(_uiManager != null)
             {
-                _uiManager.OnPlayClicked     -= HandlePlayClicked;
-                _uiManager.OnMainMenuClicked -= HandleMainMenuClicked;
+                _uiManager.OnPlayClicked      -= HandlePlayClicked;
+                _uiManager.OnMainMenuClicked  -= HandleMainMenuClicked;
+                _uiManager.OnRetryClicked     -= HandleRetryClicked;
+                _uiManager.OnNextLevelClicked -= HandleNextLevelClicked;
             }
         }
 
@@ -87,12 +91,21 @@ namespace Core
             ReturnToMainMenuSequenceAsync().Forget();
         }
 
+        private void HandleRetryClicked()
+        {
+            RestartLevelSequenceAsync().Forget();
+        }
+
+        private void HandleNextLevelClicked()
+        {
+            NextLevelSequenceAsync().Forget();
+        }
+
         private async UniTaskVoid StartLevelSequenceAsync()
         {
             try
             {
                 _audioService?.CrossFadeMusicAsync(SoundType.GameplayMusic, 0.5f).Forget();
-
                 SetLoadingState(true);
 
                 await PlayLoadingAnimationAsync();
@@ -108,12 +121,54 @@ namespace Core
             }
         }
 
+        private async UniTaskVoid RestartLevelSequenceAsync()
+        {
+            try
+            {
+                _audioService?.CrossFadeMusicAsync(SoundType.GameplayMusic, 0.5f).Forget();
+                SetLoadingState(true);
+
+                _gameplayController.ClearCurrentLevel();
+
+                await PlayLoadingAnimationAsync();
+
+                _uiManager.ResetAllPanels();
+                _gameplayController.InitializeLevel();
+            }
+            finally
+            {
+                SetLoadingState(false);
+                _stateMachine.ChangeState(GameState.WaitingForInput);
+            }
+        }
+
+        private async UniTaskVoid NextLevelSequenceAsync()
+        {
+            try
+            {
+                _audioService?.CrossFadeMusicAsync(SoundType.GameplayMusic, 0.5f).Forget();
+                SetLoadingState(true);
+
+                _gameplayController.ClearCurrentLevel();
+
+                await PlayLoadingAnimationAsync();
+
+                _uiManager.ResetAllPanels();
+                _uiManager.RefreshLevelData();
+                _gameplayController.InitializeLevel();
+            }
+            finally
+            {
+                SetLoadingState(false);
+                _stateMachine.ChangeState(GameState.WaitingForInput);
+            }
+        }
+
         private async UniTaskVoid ReturnToMainMenuSequenceAsync()
         {
             try
             {
                 _audioService?.CrossFadeMusicAsync(SoundType.MainMenuMusic, 0.5f).Forget();
-
                 SetLoadingState(true);
 
                 _gameplayController.ClearCurrentLevel();

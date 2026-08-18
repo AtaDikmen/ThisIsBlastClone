@@ -119,7 +119,6 @@ namespace Shooter
             var target = _gridManager.GetAvailableFrontBlock(OccupiedBy.Type);
             if(target != null)
             {
-                target.IsTargeted = true;
                 OccupiedBy.SetFiringState(true);
 
                 await FireProjectileTaskAsync(target, ct);
@@ -135,7 +134,7 @@ namespace Shooter
                 else
                 {
                     OccupiedBy.SetFiringState(false);
-                    await UniTask.Delay(TimeSpan.FromSeconds(0.08f), cancellationToken: ct);
+                    await UniTask.Delay(TimeSpan.FromSeconds(0.06f), cancellationToken: ct);
                     CheckAndFireSequenceAsync(ct).Forget();
                 }
             }
@@ -168,7 +167,11 @@ namespace Shooter
 
             var escapingBlock = OccupiedBy;
             OccupiedBy = null;
+
             OnSlotFreed?.Invoke(this);
+
+            if(_slotManager != null)
+                _slotManager.TriggerAllSlotsToFire();
 
             if(escapingBlock != null)
                 escapingBlock.PlayRunAwayAndDestroyAsync().Forget();

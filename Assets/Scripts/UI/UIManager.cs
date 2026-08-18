@@ -49,6 +49,8 @@ namespace UI
 
         public event Action OnPlayClicked;
         public event Action OnMainMenuClicked;
+        public event Action OnRetryClicked;
+        public event Action OnNextLevelClicked;
 
         [Inject]
         public void Construct(ISaveService saveService, IAudioService audioService)
@@ -158,8 +160,6 @@ namespace UI
 
             float targetFill = (float)destroyedBlocks / _totalBlocksInLevel;
 
-            Debug.Log($"[UIManager] Progress -> Kalan: {clampedRemaining} / Toplam: {_totalBlocksInLevel} | Fill: {targetFill:F2}");
-
             if(Mathf.Approximately(hudProgressBar.fillAmount, targetFill)) return;
 
             Tween.StopAll(hudProgressBar);
@@ -200,13 +200,13 @@ namespace UI
         {
             _audioService?.PlaySFX(SoundType.ButtonClick);
             _saveService?.SaveCurrentLevel(_saveService.GetCurrentLevel() + 1);
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            OnNextLevelClicked?.Invoke();
         }
 
         private void HandleRetryClicked()
         {
             _audioService?.PlaySFX(SoundType.ButtonClick);
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            OnRetryClicked?.Invoke();
         }
 
         private void HandleMainMenuClicked()

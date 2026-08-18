@@ -267,5 +267,14 @@ namespace Shooter
             }
             return false;
         }
+        
+        public void TriggerAllSlotsToFire()
+        {
+            foreach(var slot in _slots)
+            {
+                if(slot != null && slot.IsOccupied)
+                    slot.StartFiringSequence();
+            }
+        }
     }
 }
