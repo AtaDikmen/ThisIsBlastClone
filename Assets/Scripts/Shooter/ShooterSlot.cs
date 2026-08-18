@@ -134,10 +134,12 @@ namespace Shooter
                 else
                 {
                     OccupiedBy.SetFiringState(false);
-                    await UniTask.Delay(TimeSpan.FromSeconds(0.06f), cancellationToken: ct);
+                    await UniTask.Delay(TimeSpan.FromSeconds(0.038f), cancellationToken: ct);
                     CheckAndFireSequenceAsync(ct).Forget();
                 }
             }
+            else
+                OccupiedBy.ResetOrientationToDefaultAsync().Forget();
         }
 
         private async UniTask FireProjectileTaskAsync(GridBlock target, CancellationToken ct)

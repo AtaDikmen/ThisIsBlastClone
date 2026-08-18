@@ -1,44 +1,40 @@
 ﻿using System;
 using Block;
+using PrimeTween;
 using UnityEngine;
 
 namespace Shooter
 {
     public class Projectile : MonoBehaviour
     {
-        [SerializeField] private float _speed = 15f;
+        [SerializeField] private float flightDuration = 0.11f;
+        [SerializeField] private Ease  easeType       = Ease.Linear;
 
-        private GridBlock _targetBlock;
-        private Vector3   _targetPosition;
-        private Action    _onHitCallback;
-        private bool      _isFlying = false;
+        private Tween _activeTween;
 
         public void Launch(GridBlock target, Action onHit)
         {
-            _targetBlock    = target;
-            _targetPosition = target != null ? target.transform.position : transform.position;
-            _onHitCallback  = onHit;
-            _isFlying       = true;
+            if(target == null)
+            {
+                onHit?.Invoke();
+                Destroy(gameObject);
+                return;
+            }
+
+            var targetPosition = target.transform.position;
+
+            _activeTween = Tween.Position(transform, endValue: targetPosition, duration: flightDuration, ease: easeType)
+                                .OnComplete(() =>
+                                {
+                                    onHit?.Invoke();
+                                    Destroy(gameObject);
+                                });
         }
 
-        private void Update()
+        private void OnDestroy()
         {
-            if(!_isFlying) return;
-
-            if(_targetBlock != null)
-            {
-                _targetPosition = _targetBlock.transform.position;
-            }
-
-            transform.position = Vector3.MoveTowards(transform.position, _targetPosition, _speed * Time.deltaTime
-            );
-
-            if(Vector3.Distance(transform.position, _targetPosition) <= 0.05f)
-            {
-                _isFlying = false;
-                _onHitCallback?.Invoke();
-                Destroy(gameObject);
-            }
+            if(_activeTween.isAlive)
+                _activeTween.Stop();
         }
     }
 }

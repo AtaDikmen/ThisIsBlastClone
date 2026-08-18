@@ -373,7 +373,7 @@ MonoBehaviour:
     Prefab: {fileID: 3184030305776955231, guid: ae50def39b40d9c459eb33ccdebd0457, type: 3}
   _cellPadding: 0.1
   _cellSize: 1
-  _gridBottomY: -3
+  _gridBottomY: -2
   _colorPalette:
   - BlockType: 1
     Color: {r: 0.9, g: 0.2, b: 0.2, a: 1}
@@ -4991,7 +4991,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Shooter.ShooterSlotManager
   slotPrefab: {fileID: 6790010955914984821, guid: fe804cb7affc9c3438edc75f0d819506, type: 3}
   slotsParent: {fileID: 1530298095}
-  slotSpacing: 1.1
+  slotSpacing: 1.3
   slotsOriginPosition: {x: 0, y: -5, z: 0}
   projectilePrefab: {fileID: 824299106496865480, guid: e3084eba438099b4a812cfb236b5434b, type: 3}
 --- !u!1 &1534021300

@@ -31,9 +31,10 @@ namespace Shooter
         private Quaternion    _defaultRotation;
         private IAudioService _audioService;
 
-        private Sequence _activeRecoilSequence;
-        private Sequence _activeMergeSequence;
-        private Sequence _activeRunAwaySequence;
+        private Sequence  _activeRecoilSequence;
+        private Sequence  _activeMergeSequence;
+        private Sequence  _activeRunAwaySequence;
+        private GridBlock _lastTarget;
 
         public event Action<ShooterBlock> OnTapped;
 
@@ -72,7 +73,12 @@ namespace Shooter
             RefreshLabel();
         }
 
-        public void SetFiringState(bool isFiring) => IsFiring = isFiring;
+        public void SetFiringState(bool isFiring)
+        {
+            IsFiring = isFiring;
+            if(!isFiring && _lastTarget == null)
+                ResetOrientationToDefaultAsync().Forget();
+        }
 
         public void DecreaseBulletCount()
         {
@@ -99,13 +105,14 @@ namespace Shooter
         {
             if(IsEmpty || target == null)
             {
+                _lastTarget = null;
                 onComplete?.Invoke();
                 return;
             }
 
             IsFiring = true;
             _audioService?.PlaySFX(SoundType.ShooterFire);
-            PlayFireRecoil(target.transform.position).Forget();
+            PlayFireRecoil(target).Forget();
 
             GameObject bulletObj;
             if(projectilePrefab != null)
@@ -139,37 +146,40 @@ namespace Shooter
             });
         }
 
-        private async UniTaskVoid PlayFireRecoil(Vector3 targetWorldPosition)
+        private async UniTaskVoid PlayFireRecoil(GridBlock target)
         {
             if(_activeRecoilSequence.isAlive)
                 _activeRecoilSequence.Stop();
 
-            transform.localScale = _defaultScale;
+            bool isSameTarget = (_lastTarget == target);
+            _lastTarget = target;
 
-            Vector3 direction                       = (targetWorldPosition - transform.position).normalized;
+            var direction                           = (target.transform.position - transform.position).normalized;
             if(direction == Vector3.zero) direction = Vector3.forward;
 
-            Quaternion targetRotation = Quaternion.LookRotation(Vector3.forward, direction);
+            var targetRotation = Quaternion.LookRotation(Vector3.forward, direction);
 
-            Vector3 recoilScale       = new Vector3(_defaultScale.x * 1.22f, _defaultScale.y * 0.78f, _defaultScale.z * 1.22f);
-            Vector3 stretchScale      = new Vector3(_defaultScale.x * 0.90f, _defaultScale.y * 1.12f, _defaultScale.z * 0.90f);
-            Vector3 recoilPunchVector = -direction * 0.12f;
+            Vector3 recoilScale       = new Vector3(_defaultScale.x * 1.12f, _defaultScale.y * 0.88f, _defaultScale.z * 1.12f);
+            Vector3 recoilPunchVector = -direction * 0.07f;
 
             var seq = Sequence.Create();
 
-            if(Quaternion.Angle(transform.rotation, targetRotation) > 0.1f)
-                seq = seq.Group(Tween.Rotation(transform, endValue: targetRotation, duration: 0.05f, ease: Ease.OutQuad));
+            if(!isSameTarget || Quaternion.Angle(transform.rotation, targetRotation) > 1f)
+                seq = seq.Group(Tween.Rotation(transform, endValue: targetRotation, duration: 0.03f, ease: Ease.OutQuad));
 
-            seq = seq.Group(Tween.Scale(transform, recoilScale, duration: 0.04f, ease: Ease.OutQuad))
-                     .Group(Tween.PunchLocalPosition(transform, recoilPunchVector, duration: 0.10f, frequency: 1))
-                     .Chain(Tween.Scale(transform, stretchScale, duration: 0.05f, ease: Ease.OutQuad))
-                     .Chain(Tween.Scale(transform, _defaultScale, duration: 0.08f, ease: Ease.OutElastic));
-
-            if(Quaternion.Angle(targetRotation, _defaultRotation) > 0.1f)
-                seq = seq.Chain(Tween.Rotation(transform, endValue: _defaultRotation, duration: 0.15f, ease: Ease.OutQuad));
+            seq = seq.Group(Tween.Scale(transform, recoilScale, duration: 0.025f, ease: Ease.OutQuad))
+                     .Group(Tween.PunchLocalPosition(transform, recoilPunchVector, duration: 0.04f, frequency: 1))
+                     .Chain(Tween.Scale(transform, _defaultScale, duration: 0.03f, ease: Ease.OutQuad));
 
             _activeRecoilSequence = seq;
             await _activeRecoilSequence.ToYieldInstruction();
+        }
+
+        public async UniTaskVoid ResetOrientationToDefaultAsync()
+        {
+            _lastTarget = null;
+            if(Quaternion.Angle(transform.rotation, _defaultRotation) > 0.1f)
+                await Tween.Rotation(transform, endValue: _defaultRotation, duration: 0.10f, ease: Ease.OutQuad).ToYieldInstruction();
         }
 
         public async UniTask PlayMergeJuiceAsync()
@@ -240,10 +250,7 @@ namespace Shooter
 
             await _activeRunAwaySequence.ToYieldInstruction();
 
-            if(this != null && gameObject != null)
-            {
-                Destroy(gameObject);
-            }
+            Destroy(gameObject);
         }
 
         public void RefreshLabel()
