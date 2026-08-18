@@ -20,20 +20,44 @@ namespace Shooter
         private GameObject                    _projectilePrefab;
         private Action<GameObject, BlockType> _applyColorCallback;
 
-        // Concurrent placement ve input çakışmalarını önleyen asenkron kilit
         private readonly SemaphoreSlim           _placementLock = new SemaphoreSlim(1, 1);
         private          CancellationTokenSource _cts;
 
         private void Awake()
         {
-            _cts = new CancellationTokenSource();
+            ResetCancellationTokenSource();
         }
 
         private void OnDestroy()
         {
-            _cts?.Cancel();
-            _cts?.Dispose();
+            UnsubscribeGridEvents();
+
+            if(_cts != null)
+            {
+                if(!_cts.IsCancellationRequested)
+                    _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+
             _placementLock?.Dispose();
+        }
+
+        private void ResetCancellationTokenSource()
+        {
+            if(_cts != null)
+            {
+                if(!_cts.IsCancellationRequested)
+                    _cts.Cancel();
+                _cts.Dispose();
+            }
+            _cts = new CancellationTokenSource();
+        }
+
+        private void UnsubscribeGridEvents()
+        {
+            if(_gridManager != null)
+                _gridManager.OnFrontRowChanged -= OnFrontRowChangedHandler;
         }
 
         public async UniTask PlaceAndAnimateAsync(
@@ -43,6 +67,9 @@ namespace Shooter
             GameObject                    projectilePrefab,
             Action<GameObject, BlockType> applyColorCallback)
         {
+            if(_cts == null || _cts.IsCancellationRequested)
+                ResetCancellationTokenSource();
+
             await _placementLock.WaitAsync(_cts.Token);
 
             try
@@ -62,7 +89,7 @@ namespace Shooter
             }
             finally
             {
-                _placementLock.Release();
+                _placementLock?.Release();
             }
         }
 
@@ -94,22 +121,29 @@ namespace Shooter
                 _gridManager.OnFrontRowChanged += OnFrontRowChangedHandler;
             }
 
-            CheckAndFireSequenceAsync(_cts.Token).Forget();
+            TriggerFireSequence();
         }
 
         public void StopFiringSequence()
         {
-            if(_gridManager != null)
-                _gridManager.OnFrontRowChanged -= OnFrontRowChangedHandler;
+            UnsubscribeGridEvents();
         }
 
         private void OnFrontRowChangedHandler()
         {
+            TriggerFireSequence();
+        }
+
+        private void TriggerFireSequence()
+        {
+            if(_cts == null || _cts.IsCancellationRequested) return;
+
             CheckAndFireSequenceAsync(_cts.Token).Forget();
         }
 
         private async UniTask CheckAndFireSequenceAsync(CancellationToken ct)
         {
+            if(ct.IsCancellationRequested) return;
             if(!IsOccupied || OccupiedBy == null || _gridManager == null) return;
             if(OccupiedBy.IsFiring || OccupiedBy.IsEmpty) return;
 
@@ -123,7 +157,7 @@ namespace Shooter
 
                 await FireProjectileTaskAsync(target, ct);
 
-                if(OccupiedBy == null) return;
+                if(ct.IsCancellationRequested || OccupiedBy == null) return;
 
                 OccupiedBy.DecreaseBulletCount();
 
@@ -134,8 +168,11 @@ namespace Shooter
                 else
                 {
                     OccupiedBy.SetFiringState(false);
+
                     await UniTask.Delay(TimeSpan.FromSeconds(0.038f), cancellationToken: ct);
-                    CheckAndFireSequenceAsync(ct).Forget();
+
+                    if(!ct.IsCancellationRequested)
+                        CheckAndFireSequenceAsync(ct).Forget();
                 }
             }
             else
@@ -151,9 +188,7 @@ namespace Shooter
 
         public void ClearSlotReferenceForMerge()
         {
-            if(_gridManager != null)
-                _gridManager.OnFrontRowChanged -= OnFrontRowChangedHandler;
-
+            UnsubscribeGridEvents();
             OccupiedBy = null;
         }
 
@@ -164,8 +199,7 @@ namespace Shooter
 
         private void HandleEmpty()
         {
-            if(_gridManager != null)
-                _gridManager.OnFrontRowChanged -= OnFrontRowChangedHandler;
+            UnsubscribeGridEvents();
 
             var escapingBlock = OccupiedBy;
             OccupiedBy = null;
