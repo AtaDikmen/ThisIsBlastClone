@@ -27,25 +27,22 @@ namespace Shooter
         private readonly List<ShooterSlot> _slots     = new List<ShooterSlot>();
         private readonly SemaphoreSlim     _mergeLock = new SemaphoreSlim(1, 1);
 
-        private GridManager       _gridManager;
-        private ShooterQueue      _shooterQueue;
-        private LevelGenerator    _levelGenerator;
-        private IAudioService     _audioService;
-        private IVibrationService _vibrationService;
+        private GridManager    _gridManager;
+        private ShooterQueue   _shooterQueue;
+        private LevelGenerator _levelGenerator;
+        private IAudioService  _audioService;
 
         [Inject]
         public void Construct(
-            GridManager       gridManager,
-            ShooterQueue      shooterQueue,
-            LevelGenerator    levelGenerator,
-            IAudioService     audioService,
-            IVibrationService vibrationService)
+            GridManager    gridManager,
+            ShooterQueue   shooterQueue,
+            LevelGenerator levelGenerator,
+            IAudioService  audioService)
         {
-            _gridManager      = gridManager;
-            _shooterQueue     = shooterQueue;
-            _levelGenerator   = levelGenerator;
-            _audioService     = audioService;
-            _vibrationService = vibrationService;
+            _gridManager    = gridManager;
+            _shooterQueue   = shooterQueue;
+            _levelGenerator = levelGenerator;
+            _audioService   = audioService;
         }
 
         private void OnDestroy()
@@ -179,7 +176,6 @@ namespace Shooter
                 mainBlock.IsMerging = false;
 
                 await mainBlock.PlayMergeJuiceAsync();
-                _vibrationService?.VibrateMedium();
                 mainSlot.StartFiringSequence();
                 return true;
             }

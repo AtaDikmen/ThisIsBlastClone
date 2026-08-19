@@ -40,7 +40,6 @@ namespace Core
             builder.Register<SaveService>(Lifetime.Singleton).As<ISaveService>();
             builder.Register<GameplayStateMachine>(Lifetime.Singleton).As<IGameplayStateMachine>();
             builder.Register<LevelProviderService>(Lifetime.Singleton).WithParameter("levels", levels);
-            builder.Register<VibrationService>(Lifetime.Singleton).As<IVibrationService>();
 
             builder.RegisterComponent(levelGenerator);
             builder.RegisterComponent(gridManager);

@@ -41,9 +41,8 @@ namespace Block
 
         public event Action<GridBlock> OnExploded;
 
-        private IAudioService     _audioService;
-        private IVFXService       _vfxService;
-        private IVibrationService _vibrationService;
+        private IAudioService _audioService;
+        private IVFXService   _vfxService;
 
         private void Awake()
         {
@@ -71,16 +70,15 @@ namespace Block
             _renderer.SetPropertyBlock(_propBlock);
         }
 
-        public void Setup(BlockType type, int columnIndex, int rowIndex, int initialHealth = 1, IAudioService audioService = null, IVFXService vfxService = null, IVibrationService vibrationService = null)
+        public void Setup(BlockType type, int columnIndex, int rowIndex, int initialHealth = 1, IAudioService audioService = null, IVFXService vfxService = null)
         {
-            Type              = type;
-            ColumnIndex       = columnIndex;
-            RowIndex          = rowIndex;
-            Health            = initialHealth;
-            IsExploding       = false;
-            _audioService     = audioService;
-            _vfxService       = vfxService;
-            _vibrationService = vibrationService;
+            Type          = type;
+            ColumnIndex   = columnIndex;
+            RowIndex      = rowIndex;
+            Health        = initialHealth;
+            IsExploding   = false;
+            _audioService = audioService;
+            _vfxService   = vfxService;
 
             UpdateHealthLabel();
         }
@@ -123,8 +121,6 @@ namespace Block
             IsExploding = true;
 
             _audioService?.PlaySFX(IsBomb ? SoundType.BombExplode : SoundType.BlockExplode);
-            if(IsBomb)
-                _vibrationService?.VibrateMedium();
             _vfxService?.PlayVFX(VFXType.BlockExplode, transform.position);
 
             if(IsBomb)

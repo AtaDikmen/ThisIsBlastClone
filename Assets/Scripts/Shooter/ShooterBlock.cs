@@ -38,11 +38,10 @@ namespace Shooter
 
         private Material _outlineMaterialInstance;
 
-        private Vector3       _defaultScale = Vector3.one * 0.25f;
-        private Quaternion    _defaultRotation;
-        
+        private Vector3    _defaultScale = Vector3.one * 0.25f;
+        private Quaternion _defaultRotation;
+
         private IAudioService _audioService;
-        private IVibrationService _vibrationService;
 
         private Sequence  _activeRecoilSequence;
         private Sequence  _activeMergeSequence;
@@ -82,7 +81,7 @@ namespace Shooter
             if(_activeRunAwaySequence.isAlive) _activeRunAwaySequence.Stop();
         }
 
-        public void Setup(BlockType type, int bulletCount, IAudioService audioService = null, IVibrationService vibrationService = null)
+        public void Setup(BlockType type, int bulletCount, IAudioService audioService = null)
         {
             Type          = type;
             BulletCount   = bulletCount;
@@ -90,7 +89,6 @@ namespace Shooter
             IsFiring      = false;
             IsEscaping    = false;
             _audioService = audioService;
-            _vibrationService = vibrationService;
 
             if(bulletLabel == null)
                 bulletLabel = GetComponentInChildren<TMP_Text>();
@@ -123,7 +121,6 @@ namespace Shooter
             if(!IsInSlot && !IsFiring)
             {
                 _audioService?.PlaySFX(SoundType.ShooterTap);
-                _vibrationService?.VibrateLight();
                 OnTapped?.Invoke(this);
             }
         }
