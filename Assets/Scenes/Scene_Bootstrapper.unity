@@ -793,8 +793,8 @@ MonoBehaviour:
   splashCanvasGroup: {fileID: 1289902658}
   loadingCanvasGroup: {fileID: 2071092729}
   loadingBarFill: {fileID: 1364959029}
-  splashDuration: 1.5
-  fakeLoadingDuration: 2.5
+  splashDuration: 2.5
+  fakeLoadingDuration: 2
 --- !u!1 &1898162721
 GameObject:
   m_ObjectHideFlags: 0
