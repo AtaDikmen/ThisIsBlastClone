@@ -120,7 +120,7 @@ namespace Shooter
 
                 foreach(var slot in _slots)
                 {
-                    if(slot.IsOccupied && slot.OccupiedBy != null && !slot.OccupiedBy.IsEmpty && slot.OccupiedBy.Type == targetType)
+                    if(slot.IsOccupied && slot.OccupiedBy != null && slot.OccupiedBy.Type == targetType && slot.OccupiedBy.CanBeMerged)
                         matchingSlots.Add(slot);
                 }
 
@@ -135,6 +135,14 @@ namespace Shooter
                 var thirdBlock  = thirdSlot.OccupiedBy;
 
                 if(mainBlock == null || secondBlock == null || thirdBlock == null) return false;
+                if(!mainBlock.CanBeMerged || !secondBlock.CanBeMerged || !thirdBlock.CanBeMerged) return false;
+
+                mainBlock.IsMerging   = true;
+                secondBlock.IsMerging = true;
+                thirdBlock.IsMerging  = true;
+
+                secondBlock.IsEscaping = true;
+                thirdBlock.IsEscaping  = true;
 
                 mainSlot.StopFiringSequence();
                 secondSlot.StopFiringSequence();
@@ -150,19 +158,21 @@ namespace Shooter
 
                 if(mainBlock == null) return false;
 
-                int secondBullets = secondBlock != null ? secondBlock.BulletCount : 0;
-                int thirdBullets  = thirdBlock != null ? thirdBlock.BulletCount : 0;
+                int secondBullets = secondBlock.BulletCount;
+                int thirdBullets  = thirdBlock.BulletCount;
 
                 mainBlock.SetBulletCount(mainBlock.BulletCount + secondBullets + thirdBullets);
 
                 secondSlot.ClearSlotReferenceForMerge();
                 thirdSlot.ClearSlotReferenceForMerge();
 
-                if(secondBlock != null) Destroy(secondBlock.gameObject);
-                if(thirdBlock != null) Destroy(thirdBlock.gameObject);
+                Destroy(secondBlock.gameObject);
+                Destroy(thirdBlock.gameObject);
 
                 secondSlot.NotifySlotFreed();
                 thirdSlot.NotifySlotFreed();
+
+                mainBlock.IsMerging = false;
 
                 await mainBlock.PlayMergeJuiceAsync();
                 mainSlot.StartFiringSequence();
@@ -267,7 +277,7 @@ namespace Shooter
             }
             return false;
         }
-        
+
         public void TriggerAllSlotsToFire()
         {
             foreach(var slot in _slots)
@@ -276,12 +286,12 @@ namespace Shooter
                     slot.StartFiringSequence();
             }
         }
-        
+
         public void ClearSlotsWithRunAwayAnimation()
         {
-            foreach (var slot in _slots)
+            foreach(var slot in _slots)
             {
-                if (slot != null && slot.IsOccupied && slot.OccupiedBy != null)
+                if(slot != null && slot.IsOccupied && slot.OccupiedBy != null)
                 {
                     var block = slot.OccupiedBy;
                     slot.ClearSlotReferenceForMerge();

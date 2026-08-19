@@ -151,7 +151,7 @@ namespace Shooter
         {
             if(ct.IsCancellationRequested) return;
             if(!IsOccupied || OccupiedBy == null || _gridManager == null) return;
-            if(OccupiedBy.IsFiring || OccupiedBy.IsEmpty) return;
+            if(OccupiedBy.IsFiring || OccupiedBy.IsEmpty || OccupiedBy.IsEscaping || OccupiedBy.IsMerging) return;
 
             if(_slotManager != null && !_slotManager.IsLowestAmmoShooterForColor(this, OccupiedBy.Type))
                 return;
@@ -163,12 +163,13 @@ namespace Shooter
 
                 await FireProjectileTaskAsync(target, ct);
 
-                if(ct.IsCancellationRequested || OccupiedBy == null) return;
+                if(ct.IsCancellationRequested || OccupiedBy == null || OccupiedBy.IsEscaping || OccupiedBy.IsMerging) return;
 
                 OccupiedBy.DecreaseBulletCount();
 
                 if(OccupiedBy.IsEmpty)
                 {
+                    OccupiedBy.IsEscaping = true;
                     HandleEmpty();
                 }
                 else

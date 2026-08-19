@@ -39,7 +39,7 @@ MonoBehaviour:
   - Type: 4
     BulletCount: 10
   - Type: 2
-    BulletCount: 10
+    BulletCount: 20
   - Type: 5
     BulletCount: 10
   - Type: 1

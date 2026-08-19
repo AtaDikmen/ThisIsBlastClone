@@ -16,6 +16,14 @@ namespace Shooter
         public bool      IsEmpty     => BulletCount <= 0;
         public bool      IsInSlot    { get; set; }
         public bool      IsFiring    { get; private set; }
+        public bool      IsEscaping  { get; set; }
+        public bool      IsMerging   { get; set; }
+
+        public bool CanBeMerged => IsInSlot &&
+                                   !IsEmpty &&
+                                   !IsEscaping &&
+                                   !IsMerging &&
+                                   !(IsFiring && BulletCount <= 1);
 
         [Header("UI")]
         [SerializeField] private TMP_Text bulletLabel;
@@ -77,6 +85,7 @@ namespace Shooter
             BulletCount   = bulletCount;
             IsInSlot      = false;
             IsFiring      = false;
+            IsEscaping    = false;
             _audioService = audioService;
 
             if(bulletLabel == null)
@@ -275,6 +284,8 @@ namespace Shooter
 
         public async UniTask PlayRunAwayAndDestroyAsync()
         {
+            IsEscaping = true;
+
             if(_activeRecoilSequence.isAlive) _activeRecoilSequence.Stop();
             if(_activeMergeSequence.isAlive) _activeMergeSequence.Stop();
 
@@ -282,7 +293,6 @@ namespace Shooter
 
             transform.SetParent(null);
 
-            // 🎯 Slottan kaçmadan hemen önce anlık beyaz flash efektini çalıştırır
             PlayFlashEffectAsync(0.18f).Forget();
 
             Vector3 startPos           = transform.position;
