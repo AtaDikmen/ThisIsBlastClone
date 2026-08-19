@@ -7,6 +7,7 @@ using Cysharp.Threading.Tasks;
 using Data;
 using Level;
 using PrimeTween;
+using Services;
 using UnityEngine;
 using VContainer;
 
@@ -26,22 +27,25 @@ namespace Shooter
         private readonly List<ShooterSlot> _slots     = new List<ShooterSlot>();
         private readonly SemaphoreSlim     _mergeLock = new SemaphoreSlim(1, 1);
 
-        private GridManager    _gridManager;
-        private ShooterQueue   _shooterQueue;
-        private LevelGenerator _levelGenerator;
-        private IAudioService  _audioService;
+        private GridManager       _gridManager;
+        private ShooterQueue      _shooterQueue;
+        private LevelGenerator    _levelGenerator;
+        private IAudioService     _audioService;
+        private IVibrationService _vibrationService;
 
         [Inject]
         public void Construct(
-            GridManager    gridManager,
-            ShooterQueue   shooterQueue,
-            LevelGenerator levelGenerator,
-            IAudioService  audioService)
+            GridManager       gridManager,
+            ShooterQueue      shooterQueue,
+            LevelGenerator    levelGenerator,
+            IAudioService     audioService,
+            IVibrationService vibrationService)
         {
-            _gridManager    = gridManager;
-            _shooterQueue   = shooterQueue;
-            _levelGenerator = levelGenerator;
-            _audioService   = audioService;
+            _gridManager      = gridManager;
+            _shooterQueue     = shooterQueue;
+            _levelGenerator   = levelGenerator;
+            _audioService     = audioService;
+            _vibrationService = vibrationService;
         }
 
         private void OnDestroy()
@@ -175,6 +179,7 @@ namespace Shooter
                 mainBlock.IsMerging = false;
 
                 await mainBlock.PlayMergeJuiceAsync();
+                _vibrationService?.VibrateMedium();
                 mainSlot.StartFiringSequence();
                 return true;
             }

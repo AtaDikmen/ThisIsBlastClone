@@ -22,6 +22,7 @@ namespace Gameplay
         private UIManager             _uiManager;
         private IGameplayStateMachine _stateMachine;
         private IAudioService         _audioService;
+        private IVibrationService     _vibrationService;
 
         private bool                    _isGameEnded = false;
         private CancellationTokenSource _failCheckCts;
@@ -35,7 +36,8 @@ namespace Gameplay
             GridManager           gridManager,
             UIManager             uiManager,
             IGameplayStateMachine stateMachine,
-            IAudioService         audioService)
+            IAudioService         audioService,
+            IVibrationService     vibrationService)
         {
             _levelGenerator       = levelGenerator;
             _levelProviderService = levelProviderService;
@@ -45,6 +47,7 @@ namespace Gameplay
             _uiManager            = uiManager;
             _stateMachine         = stateMachine;
             _audioService         = audioService;
+            _vibrationService     = vibrationService;
         }
 
         private void OnDestroy()
@@ -183,6 +186,7 @@ namespace Gameplay
 
             _stateMachine.ChangeState(GameState.LevelWon);
             _audioService?.PlaySFX(SoundType.Win);
+            _vibrationService.VibrateHeavy();
 
             ClearRemainingShootersOnWinAsync().Forget();
             if(_uiManager != null)
@@ -212,6 +216,7 @@ namespace Gameplay
 
             _stateMachine.ChangeState(GameState.LevelFailed);
             _audioService?.PlaySFX(SoundType.Fail);
+            _vibrationService.VibrateHeavy();
 
             if(_uiManager != null)
                 _uiManager.ShowFailUI();
