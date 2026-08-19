@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using Audio;
 using Block;
 using Cysharp.Threading.Tasks;
@@ -22,7 +23,8 @@ namespace Gameplay
         private IGameplayStateMachine _stateMachine;
         private IAudioService         _audioService;
 
-        private bool _isGameEnded = false;
+        private bool                    _isGameEnded = false;
+        private CancellationTokenSource _failCheckCts;
 
         [Inject]
         public void Construct(
@@ -48,10 +50,14 @@ namespace Gameplay
         private void OnDestroy()
         {
             UnsubscribeEvents();
+            CancelFailCheckToken();
         }
 
         public void InitializeLevel()
         {
+            CancelFailCheckToken();
+            UnsubscribeEvents();
+
             _isGameEnded = false;
             _stateMachine.ChangeState(GameState.Initializing);
 
@@ -61,8 +67,6 @@ namespace Gameplay
                 Debug.LogError("[GameplayController] LevelData bulunamadı!");
                 return;
             }
-
-            UnsubscribeEvents();
 
             var gridColumns = _levelGenerator.GenerateGrid(currentLevel);
 
@@ -74,7 +78,6 @@ namespace Gameplay
             }
 
             int totalBlocks = _gridManager != null ? _gridManager.GetRemainingBlockCount() : 0;
-            Debug.Log($"[GameplayController] Başlangıç Toplam Blok Sayısı: {totalBlocks}");
 
             if(_uiManager != null)
                 _uiManager.ShowGameplayHUD(totalBlocks);
@@ -107,11 +110,16 @@ namespace Gameplay
 
         private void OnBlockSelectedHandler(ShooterBlock block)
         {
+            // 🛑 GUARD 1: Eğer oyun zaten bittiyse gelen inputları kesinlikle işleme!
+            if(_isGameEnded) return;
+
             CheckGameStateAsyncForget();
         }
 
         private void CheckGameStateAsyncForget()
         {
+            if(_isGameEnded) return;
+
             if(_gridManager != null && _uiManager != null)
             {
                 int remainingBlocks = _gridManager.GetRemainingBlockCount();
@@ -125,9 +133,8 @@ namespace Gameplay
         {
             if(_isGameEnded) return;
 
-            await UniTask.Delay(TimeSpan.FromSeconds(0.25f));
-
-            if(_isGameEnded) return;
+            bool isCanceled = await UniTask.Delay(TimeSpan.FromSeconds(0.25f), cancellationToken: this.GetCancellationTokenOnDestroy()).SuppressCancellationThrow();
+            if(isCanceled || _isGameEnded) return;
 
             if(_gridManager != null && _gridManager.IsAllEmpty())
             {
@@ -137,17 +144,29 @@ namespace Gameplay
 
             if(_slotManager != null && _gridManager != null)
             {
-                if(_slotManager.IsAllSlotsFull())
+                if(_slotManager.IsAllSlotsFull() && !_slotManager.IsAnyShooterFiring())
                 {
-                    if(!_slotManager.IsAnyShooterFiring() && !_slotManager.HasAnyValidTargetOnGrid(_gridManager))
+                    if(!_slotManager.HasAnyValidTargetOnGrid(_gridManager))
                     {
-                        await UniTask.Delay(TimeSpan.FromSeconds(0.50f));
+                        CancelFailCheckToken();
+                        _failCheckCts = new CancellationTokenSource();
 
-                        if(_isGameEnded) return;
-
-                        if(_slotManager.IsAllSlotsFull() && !_slotManager.HasAnyValidTargetOnGrid(_gridManager))
+                        try
                         {
-                            HandleLevelFailed();
+                            await UniTask.Delay(TimeSpan.FromSeconds(3f), cancellationToken: _failCheckCts.Token);
+
+                            if(_isGameEnded) return;
+
+                            bool isStillFull    = _slotManager.IsAllSlotsFull();
+                            bool isStillFiring  = _slotManager.IsAnyShooterFiring();
+                            bool hasValidTarget = _slotManager.HasAnyValidTargetOnGrid(_gridManager);
+                            bool isBoardCleared = _gridManager.IsAllEmpty();
+
+                            if(isStillFull && !isStillFiring && !hasValidTarget && !isBoardCleared)
+                                HandleLevelFailed();
+                        }
+                        catch(OperationCanceledException)
+                        {
                         }
                     }
                 }
@@ -159,19 +178,37 @@ namespace Gameplay
             if(_isGameEnded) return;
             _isGameEnded = true;
 
+            CancelFailCheckToken();
+            UnsubscribeEvents();
+
             _stateMachine.ChangeState(GameState.LevelWon);
             _audioService?.PlaySFX(SoundType.Win);
 
+            ClearRemainingShootersOnWinAsync().Forget();
             if(_uiManager != null)
                 _uiManager.ShowWinUI();
 
             Debug.Log("[GameplayController] LEVEL WON!");
         }
 
+        private async UniTaskVoid ClearRemainingShootersOnWinAsync()
+        {
+            if(_slotManager != null)
+                _slotManager.ClearSlotsWithRunAwayAnimation();
+
+            if(_shooterQueue != null)
+                _shooterQueue.ClearQueueWithRunAwayAnimation();
+
+            await UniTask.Yield();
+        }
+
         private void HandleLevelFailed()
         {
             if(_isGameEnded) return;
             _isGameEnded = true;
+
+            CancelFailCheckToken();
+            UnsubscribeEvents();
 
             _stateMachine.ChangeState(GameState.LevelFailed);
             _audioService?.PlaySFX(SoundType.Fail);
@@ -182,9 +219,22 @@ namespace Gameplay
             Debug.Log("[GameplayController] LEVEL FAILED!");
         }
 
+        private void CancelFailCheckToken()
+        {
+            if(_failCheckCts != null)
+            {
+                _failCheckCts.Cancel();
+                _failCheckCts.Dispose();
+                _failCheckCts = null;
+            }
+        }
+
         public void ClearCurrentLevel()
         {
+            _isGameEnded = true;
+            CancelFailCheckToken();
             UnsubscribeEvents();
+
             _levelGenerator.ClearLevel();
             if(_shooterQueue != null) _shooterQueue.ClearQueue();
             if(_slotManager != null) _slotManager.ClearSlots();

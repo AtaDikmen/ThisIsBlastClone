@@ -276,5 +276,19 @@ namespace Shooter
                     slot.StartFiringSequence();
             }
         }
+        
+        public void ClearSlotsWithRunAwayAnimation()
+        {
+            foreach (var slot in _slots)
+            {
+                if (slot != null && slot.IsOccupied && slot.OccupiedBy != null)
+                {
+                    var block = slot.OccupiedBy;
+                    slot.ClearSlotReferenceForMerge();
+                    block.PlayRunAwayAndDestroyAsync().Forget();
+                    slot.NotifySlotFreed();
+                }
+            }
+        }
     }
 }

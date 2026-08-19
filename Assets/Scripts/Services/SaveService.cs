@@ -4,42 +4,48 @@ namespace Services
 {
     public interface ISaveService
     {
-        int  GetCurrentLevel();
-        void SaveCurrentLevel(int levelIndex);
-
-        int  GetCoins();
-        void AddCoins(int amount);
-
-        int  GetLives();
-        void ModifyLives(int amount);
+        int  GetCurrentLevelIndex();
+        void SaveCurrentLevelIndex(int levelIndex);
+        int  GetNextLevelIndex(int     completedLevelIndex, int totalLevelCount);
+        void AdvanceToNextLevel(int    totalLevelCount);
+        void ResetSaveData();
     }
 
     public class SaveService : ISaveService
     {
-        private const string KEY_LEVEL = "User_Current_Level";
-        private const string KEY_COINS = "User_Coins";
-        private const string KEY_LIVES = "User_Lives";
+        private const string KEY_CURRENT_LEVEL = "User_Current_Level_Index";
 
-        public int GetCurrentLevel() => PlayerPrefs.GetInt(KEY_LEVEL, 0);
-        public void SaveCurrentLevel(int levelIndex)
+        public int GetCurrentLevelIndex()
         {
-            PlayerPrefs.SetInt(KEY_LEVEL, levelIndex);
+            return PlayerPrefs.GetInt(KEY_CURRENT_LEVEL, 0);
+        }
+
+        public void SaveCurrentLevelIndex(int levelIndex)
+        {
+            PlayerPrefs.SetInt(KEY_CURRENT_LEVEL, levelIndex);
             PlayerPrefs.Save();
         }
 
-        public int GetCoins() => PlayerPrefs.GetInt(KEY_COINS, 100);
-        public void AddCoins(int amount)
+        public int GetNextLevelIndex(int completedLevelIndex, int totalLevelCount)
         {
-            int current = GetCoins();
-            PlayerPrefs.SetInt(KEY_COINS, Mathf.Max(0, current + amount));
-            PlayerPrefs.Save();
+            if(totalLevelCount <= 0) return 0;
+            return (completedLevelIndex + 1) % totalLevelCount;
         }
 
-        public int GetLives() => PlayerPrefs.GetInt(KEY_LIVES, 5);
-        public void ModifyLives(int amount)
+        /// <summary>
+        /// Mevcut seviyeyi bir sonraki seviyeye geçirir. 
+        /// Toplam seviye sayısına ulaşıldığında otomatik olarak 0. indekse (1. Seviye) döner.
+        /// </summary>
+        public void AdvanceToNextLevel(int totalLevelCount)
         {
-            int current = GetLives();
-            PlayerPrefs.SetInt(KEY_LIVES, Mathf.Clamp(current + amount, 0, 5));
+            int current   = GetCurrentLevelIndex();
+            int nextIndex = GetNextLevelIndex(current, totalLevelCount);
+            SaveCurrentLevelIndex(nextIndex);
+        }
+
+        public void ResetSaveData()
+        {
+            PlayerPrefs.DeleteKey(KEY_CURRENT_LEVEL);
             PlayerPrefs.Save();
         }
     }

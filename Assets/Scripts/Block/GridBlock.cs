@@ -14,9 +14,12 @@ namespace Block
         public int       ColumnIndex { get; private set; }
         public int       RowIndex    { get; private set; }
 
-        public int  Health      { get; private set; } = 1;
-        public bool IsTargeted  { get; set; }
-        public bool IsExploding { get; private set; }
+        public int Health        { get; private set; } = 1;
+        public int PendingDamage { get; private set; }
+
+        public int  EffectiveHealth => Health - PendingDamage;
+        public bool IsTargeted      { get; set; }
+        public bool IsExploding     { get; private set; }
 
         public bool IsRainbow => Type == BlockType.Rainbow;
         public bool IsBomb    => Type == BlockType.Bomb;
@@ -108,7 +111,7 @@ namespace Block
         {
             if(IsExploding) return;
             IsExploding = true;
-            
+
             _audioService?.PlaySFX(IsBomb ? SoundType.BombExplode : SoundType.BlockExplode);
 
             if(IsBomb)

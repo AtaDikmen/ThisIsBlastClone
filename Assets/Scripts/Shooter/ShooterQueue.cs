@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Audio;
+using Cysharp.Threading.Tasks;
 using Data;
 using Level;
 using PrimeTween;
@@ -162,6 +163,24 @@ namespace Shooter
                     {
                         block.OnTapped -= HandleBlockTapped;
                         Destroy(block.gameObject);
+                    }
+                }
+                _lanes[l].Clear();
+            }
+        }
+        
+        public void ClearQueueWithRunAwayAnimation()
+        {
+            if (_lanes == null) return;
+
+            for (int l = 0; l < _lanes.Length; l++)
+            {
+                foreach (var block in _lanes[l])
+                {
+                    if (block != null)
+                    {
+                        block.OnTapped -= HandleBlockTapped;
+                        block.PlayRunAwayAndDestroyAsync().Forget();
                     }
                 }
                 _lanes[l].Clear();

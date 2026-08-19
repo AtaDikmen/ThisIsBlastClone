@@ -17,9 +17,15 @@ namespace Services
         {
             if(_levels == null || _levels.Length == 0) return null;
 
-            int currentLevelIndex = _saveService.GetCurrentLevel();
+            int currentLevelIndex = _saveService.GetCurrentLevelIndex();
             int safeIndex         = currentLevelIndex % _levels.Length;
             return _levels[safeIndex];
+        }
+
+        public void AdvanceToNextLevel()
+        {
+            if(_levels == null || _levels.Length == 0) return;
+            _saveService.AdvanceToNextLevel(_levels.Length);
         }
     }
 }

@@ -41,7 +41,7 @@ namespace Block
                 if(!col.IsEmpty)
                 {
                     var frontBlock = col.FrontBlock;
-                    if(frontBlock != null && !frontBlock.IsExploding)
+                    if(frontBlock != null && !frontBlock.IsExploding && frontBlock.EffectiveHealth > 0)
                     {
                         if(frontBlock.Type == shooterType || frontBlock.IsRainbow || frontBlock.IsBomb)
                             return frontBlock;

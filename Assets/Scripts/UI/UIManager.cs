@@ -23,6 +23,7 @@ namespace UI
         [SerializeField] private CanvasGroup gameplayHudCanvasGroup;
         [SerializeField] private TMP_Text hudLevelText;
         [SerializeField] private Image    hudProgressBar;
+        [SerializeField] private Button   homeButton;
 
         [Header("Win Popup")]
         [SerializeField] private CanvasGroup winPopupCanvasGroup;
@@ -51,6 +52,7 @@ namespace UI
         public event Action OnMainMenuClicked;
         public event Action OnRetryClicked;
         public event Action OnNextLevelClicked;
+        public event Action OnHomeClicked;
 
         [Inject]
         public void Construct(ISaveService saveService, IAudioService audioService)
@@ -82,6 +84,7 @@ namespace UI
             if(nextLevelButton != null) nextLevelButton.onClick.AddListener(HandleNextLevelClicked);
             if(retryButton != null) retryButton.onClick.AddListener(HandleRetryClicked);
             if(failMainMenuButton != null) failMainMenuButton.onClick.AddListener(HandleMainMenuClicked);
+            if(homeButton != null) homeButton.onClick.AddListener(HandleHomeClicked);
             if(settingsButton != null) settingsButton.onClick.AddListener(OpenSettings);
             if(closeSettingsButton != null) closeSettingsButton.onClick.AddListener(CloseSettings);
 
@@ -98,6 +101,7 @@ namespace UI
             if(nextLevelButton != null) nextLevelButton.onClick.RemoveAllListeners();
             if(retryButton != null) retryButton.onClick.RemoveAllListeners();
             if(failMainMenuButton != null) failMainMenuButton.onClick.RemoveAllListeners();
+            if(homeButton != null) homeButton.onClick.RemoveAllListeners();
             if(settingsButton != null) settingsButton.onClick.RemoveAllListeners();
             if(closeSettingsButton != null) closeSettingsButton.onClick.RemoveAllListeners();
         }
@@ -116,7 +120,7 @@ namespace UI
         {
             if(_saveService == null) return;
 
-            int    levelIndex = _saveService.GetCurrentLevel();
+            int    levelIndex = _saveService.GetCurrentLevelIndex();
             string levelStr   = $"LEVEL {levelIndex + 1}";
 
             if(mainMenuLevelText != null) mainMenuLevelText.text = levelStr;
@@ -143,9 +147,7 @@ namespace UI
             _totalBlocksInLevel = totalBlocks;
 
             if(hudProgressBar != null)
-            {
                 hudProgressBar.fillAmount = 0f;
-            }
 
             SetCanvasGroupState(gameplayHudCanvasGroup, true);
             Debug.Log($"[UIManager] HUD Kuruldu. Toplam Blok: {_totalBlocksInLevel}");
@@ -199,7 +201,6 @@ namespace UI
         private void HandleNextLevelClicked()
         {
             _audioService?.PlaySFX(SoundType.ButtonClick);
-            _saveService?.SaveCurrentLevel(_saveService.GetCurrentLevel() + 1);
             OnNextLevelClicked?.Invoke();
         }
 
@@ -213,6 +214,12 @@ namespace UI
         {
             _audioService?.PlaySFX(SoundType.ButtonClick);
             OnMainMenuClicked?.Invoke();
+        }
+
+        private void HandleHomeClicked()
+        {
+            _audioService?.PlaySFX(SoundType.ButtonClick);
+            OnHomeClicked?.Invoke();
         }
 
         private void OpenSettings()

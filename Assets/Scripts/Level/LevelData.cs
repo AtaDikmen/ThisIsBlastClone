@@ -8,8 +8,8 @@ namespace Level
     [Serializable]
     public struct ShooterBlockEntry
     {
-        public          BlockType Type;
-        [Min(1)] public int       BulletCount;
+        public           BlockType Type;
+        [Min(10)] public int       BulletCount;
     }
 
     [CreateAssetMenu(fileName = "LevelData_", menuName = "SO/Level Data", order = 0)]
@@ -59,10 +59,13 @@ namespace Level
                 for(int c = 0; c < Column; c++)
                 {
                     var type = GetCell(r, c);
-                    if(type == BlockType.Empty) continue;
+                    if(type == BlockType.Empty || type == BlockType.Bomb || type == BlockType.Rainbow)
+                        continue;
 
                     if(!counts.ContainsKey(type)) counts[type] = 0;
-                    counts[type]++;
+
+                    int hp = (type == BlockType.Armored) ? 20 : 1;
+                    counts[type] += hp;
                 }
             }
             return counts;
@@ -84,34 +87,63 @@ namespace Level
             return counts;
         }
 
-        public void AutoSyncShootersDynamic()
+        public void AutoSyncShootersOverSupplied(float multiplier = 1.5f)
         {
-            NormalizeGridCountsToMultiplesOfTen();
+            var gridHpCounts = GetGridColorCounts();
+            var shooterList  = new List<ShooterBlockEntry>();
+            var rng          = new System.Random();
 
-            var gridCounts  = GetGridColorCounts();
-            var shooterList = new List<ShooterBlockEntry>();
-            var rng         = new System.Random();
-
-            foreach(var kvp in gridCounts)
+            var activeBaseColors = new List<BlockType>();
+            foreach(var kvp in gridHpCounts)
             {
-                BlockType color            = kvp.Key;
-                int       totalColorBlocks = kvp.Value;
+                if(IsBaseColor(kvp.Key) && kvp.Value > 0)
+                    activeBaseColors.Add(kvp.Key);
+            }
 
-                // Özel bloklar ve engeller shooter eşitlemesine dahil edilmez
-                if(color == BlockType.Armored || color == BlockType.Bomb || color == BlockType.Rainbow || totalColorBlocks <= 0)
-                    continue;
+            if(activeBaseColors.Count == 0)
+            {
+                activeBaseColors.AddRange(new[] { BlockType.Red, BlockType.Blue, BlockType.Green, BlockType.Yellow, BlockType.Purple });
+            }
 
-                while(totalColorBlocks > 0)
+            foreach(var kvp in gridHpCounts)
+            {
+                var type   = kvp.Key;
+                int baseHp = kvp.Value;
+
+                if(baseHp <= 0 || !IsBaseColor(type)) continue;
+
+                int targetBulletCount = Mathf.CeilToInt(baseHp * multiplier);
+
+                while(targetBulletCount > 0)
                 {
-                    int bulletCount = (totalColorBlocks >= 30) ? ((rng.Next(0, 2) == 0) ? 10 : 20) : ((totalColorBlocks == 20) ? 20 : 10);
+                    int bulletCount = (targetBulletCount >= 20 && rng.Next(0, 2) == 0) ? 20 : 10;
 
                     shooterList.Add(new ShooterBlockEntry
                                     {
-                                        Type        = color,
+                                        Type        = type,
                                         BulletCount = bulletCount
                                     });
 
-                    totalColorBlocks -= bulletCount;
+                    targetBulletCount -= bulletCount;
+                }
+            }
+
+            if(gridHpCounts.TryGetValue(BlockType.Armored, out int armoredHp) && armoredHp > 0)
+            {
+                int extraArmoredBullets = Mathf.CeilToInt(armoredHp * multiplier);
+
+                while(extraArmoredBullets > 0)
+                {
+                    var randomBaseColor = activeBaseColors[rng.Next(0, activeBaseColors.Count)];
+                    int bulletCount     = (extraArmoredBullets >= 20 && rng.Next(0, 2) == 0) ? 20 : 10;
+
+                    shooterList.Add(new ShooterBlockEntry
+                                    {
+                                        Type        = randomBaseColor,
+                                        BulletCount = bulletCount
+                                    });
+
+                    extraArmoredBullets -= bulletCount;
                 }
             }
 
@@ -124,56 +156,13 @@ namespace Level
             ShooterBlocks = shooterList.ToArray();
         }
 
-        private void NormalizeGridCountsToMultiplesOfTen()
+        private bool IsBaseColor(BlockType type)
         {
-            var counts = GetGridColorCounts();
-
-            foreach(var kvp in counts)
-            {
-                BlockType color = kvp.Key;
-                int       count = kvp.Value;
-
-                if(color == BlockType.Armored || color == BlockType.Bomb || color == BlockType.Rainbow || count == 0)
-                    continue;
-
-                int remainder = count % 10;
-                if(remainder == 0) continue;
-
-                if(remainder >= 5)
-                    AddBlocksToGrid(color, 10 - remainder);
-                else
-                    RemoveBlocksFromGrid(color, remainder);
-            }
-        }
-
-        private void AddBlocksToGrid(BlockType color, int amount)
-        {
-            int added = 0;
-            for(int i = 0; i < gridData.Length && added < amount; i++)
-            {
-                if(gridData[i] == BlockType.Empty)
-                {
-                    gridData[i] = color;
-                    added++;
-                }
-            }
-        }
-
-        private void RemoveBlocksFromGrid(BlockType color, int amount)
-        {
-            int removed = 0;
-
-            for(int r = 0; r < Row && removed < amount; r++)
-            {
-                for(int c = 0; c < Column && removed < amount; c++)
-                {
-                    if(GetCell(r, c) == color)
-                    {
-                        SetCell(r, c, BlockType.Empty);
-                        removed++;
-                    }
-                }
-            }
+            return type == BlockType.Red ||
+                   type == BlockType.Blue ||
+                   type == BlockType.Green ||
+                   type == BlockType.Yellow ||
+                   type == BlockType.Purple;
         }
 
 #if UNITY_EDITOR
@@ -215,12 +204,8 @@ namespace Level
 
             var allPositions = new List<(int r, int c)>();
             for(int r = 0; r < Row; r++)
-            {
                 for(int c = 0; c < Column; c++)
-                {
                     allPositions.Add((r, c));
-                }
-            }
 
             for(int i = allPositions.Count - 1; i > 0; i--)
             {
@@ -231,24 +216,15 @@ namespace Level
             int currentIdx = 0;
 
             for(int i = 0; i < bombCount && currentIdx < allPositions.Count; i++, currentIdx++)
-            {
-                var pos = allPositions[currentIdx];
-                SetCell(pos.r, pos.c, BlockType.Bomb);
-            }
+                SetCell(allPositions[currentIdx].r, allPositions[currentIdx].c, BlockType.Bomb);
 
             for(int i = 0; i < armoredCount && currentIdx < allPositions.Count; i++, currentIdx++)
-            {
-                var pos = allPositions[currentIdx];
-                SetCell(pos.r, pos.c, BlockType.Armored);
-            }
+                SetCell(allPositions[currentIdx].r, allPositions[currentIdx].c, BlockType.Armored);
 
             for(int i = 0; i < rainbowCount && currentIdx < allPositions.Count; i++, currentIdx++)
-            {
-                var pos = allPositions[currentIdx];
-                SetCell(pos.r, pos.c, BlockType.Rainbow);
-            }
+                SetCell(allPositions[currentIdx].r, allPositions[currentIdx].c, BlockType.Rainbow);
 
-            AutoSyncShootersDynamic();
+            AutoSyncShootersOverSupplied();
         }
 #endif
     }

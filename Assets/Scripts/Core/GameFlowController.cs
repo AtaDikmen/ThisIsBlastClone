@@ -2,6 +2,7 @@ using Audio;
 using Cysharp.Threading.Tasks;
 using Gameplay;
 using PrimeTween;
+using Services;
 using UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,6 +19,7 @@ namespace Core
 
         private UIManager             _uiManager;
         private GameplayController    _gameplayController;
+        private LevelProviderService  _levelProviderService;
         private IGameplayStateMachine _stateMachine;
         private IAudioService         _audioService;
         private EnvironmentManager    _environmentManager;
@@ -27,14 +29,16 @@ namespace Core
             UIManager             uiManager,
             GameplayController    gameplayController,
             IGameplayStateMachine stateMachine,
+            LevelProviderService  levelProviderService,
             IAudioService         audioService,
             EnvironmentManager    environmentManager)
         {
-            _uiManager          = uiManager;
-            _gameplayController = gameplayController;
-            _stateMachine       = stateMachine;
-            _audioService       = audioService;
-            _environmentManager = environmentManager;
+            _uiManager            = uiManager;
+            _gameplayController   = gameplayController;
+            _stateMachine         = stateMachine;
+            _audioService         = audioService;
+            _environmentManager   = environmentManager;
+            _levelProviderService = levelProviderService;
         }
 
         private void Start()
@@ -62,6 +66,7 @@ namespace Core
                 _uiManager.OnMainMenuClicked  += HandleMainMenuClicked;
                 _uiManager.OnRetryClicked     += HandleRetryClicked;
                 _uiManager.OnNextLevelClicked += HandleNextLevelClicked;
+                _uiManager.OnHomeClicked      += HandleHomeClicked;
             }
         }
 
@@ -73,6 +78,7 @@ namespace Core
                 _uiManager.OnMainMenuClicked  -= HandleMainMenuClicked;
                 _uiManager.OnRetryClicked     -= HandleRetryClicked;
                 _uiManager.OnNextLevelClicked -= HandleNextLevelClicked;
+                _uiManager.OnHomeClicked      -= HandleHomeClicked;
             }
         }
 
@@ -100,6 +106,11 @@ namespace Core
         private void HandleNextLevelClicked()
         {
             NextLevelSequenceAsync().Forget();
+        }
+        
+        private void HandleHomeClicked()
+        {
+            ReturnToMainMenuSequenceAsync().Forget();
         }
 
         private async UniTaskVoid StartLevelSequenceAsync()
@@ -152,10 +163,13 @@ namespace Core
 
                 _gameplayController.ClearCurrentLevel();
 
+                _levelProviderService.AdvanceToNextLevel();
+
                 await PlayLoadingAnimationAsync();
 
                 _uiManager.ResetAllPanels();
                 _uiManager.RefreshLevelData();
+
                 _gameplayController.InitializeLevel();
             }
             finally
