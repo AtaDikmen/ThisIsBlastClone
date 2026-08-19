@@ -32,9 +32,11 @@ namespace Block
         [Header("UI References")]
         [SerializeField] private TMP_Text healthLabel;
 
-        private                 Renderer              _renderer;
-        private                 MaterialPropertyBlock _propBlock;
-        private readonly static int                   BaseColorId = Shader.PropertyToID("_BaseColor");
+        private Renderer              _renderer;
+        private MaterialPropertyBlock _propBlock;
+
+        private readonly static int ColorId     = Shader.PropertyToID("_Color");
+        private readonly static int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         public event Action<GridBlock> OnExploded;
 
@@ -61,6 +63,8 @@ namespace Block
             Color rainbowColor = Color.HSVToRGB(hue, 0.85f, 1f);
 
             _renderer.GetPropertyBlock(_propBlock);
+
+            _propBlock.SetColor(ColorId, rainbowColor);
             _propBlock.SetColor(BaseColorId, rainbowColor);
             _renderer.SetPropertyBlock(_propBlock);
         }

@@ -27,6 +27,8 @@ namespace Shooter
         [SerializeField] private float singleHopDuration  = 0.20f;
         [SerializeField] private float impactSquashAmount = 0.30f;
 
+        private Material _outlineMaterialInstance;
+
         private Vector3       _defaultScale = Vector3.one * 0.25f;
         private Quaternion    _defaultRotation;
         private IAudioService _audioService;
@@ -35,6 +37,13 @@ namespace Shooter
         private Sequence  _activeMergeSequence;
         private Sequence  _activeRunAwaySequence;
         private GridBlock _lastTarget;
+
+        private Renderer              _renderer;
+        private MaterialPropertyBlock _propBlock;
+
+        private readonly static int HighlightId    = Shader.PropertyToID("_Highlight");
+        private readonly static int OutlineColorId = Shader.PropertyToID("_OutlineColor");
+        private readonly static int OutlineWidthId = Shader.PropertyToID("_OutlineWidth");
 
         public event Action<ShooterBlock> OnTapped;
 
@@ -45,6 +54,9 @@ namespace Shooter
 
             _defaultScale    = transform.localScale;
             _defaultRotation = transform.localRotation;
+
+            _renderer  = GetComponentInChildren<Renderer>();
+            _propBlock = new MaterialPropertyBlock();
         }
 
         private void OnMouseDown()
@@ -71,6 +83,7 @@ namespace Shooter
                 bulletLabel = GetComponentInChildren<TMP_Text>();
 
             RefreshLabel();
+            ResetHighlight();
         }
 
         public void SetFiringState(bool isFiring)
@@ -199,6 +212,67 @@ namespace Shooter
             await _activeMergeSequence.ToYieldInstruction();
         }
 
+        public async UniTask PlayFlashEffectAsync(float duration = 0.18f)
+        {
+            if(_renderer == null) return;
+
+            await Tween.Custom(0f, 1f, duration: duration, ease: Ease.OutQuad, onValueChange: t =>
+            {
+                if(_renderer == null) return;
+
+                float flashIntensity = Mathf.Sin(t * Mathf.PI);
+
+                _renderer.GetPropertyBlock(_propBlock);
+                _propBlock.SetFloat(HighlightId, flashIntensity);
+                _renderer.SetPropertyBlock(_propBlock);
+            }).ToYieldInstruction();
+
+            ResetHighlight();
+        }
+
+        private void ResetHighlight()
+        {
+            if(_renderer == null) return;
+
+            _renderer.GetPropertyBlock(_propBlock);
+            _propBlock.SetFloat(HighlightId, 0f);
+            _renderer.SetPropertyBlock(_propBlock);
+        }
+
+        public void ApplyOutline(Material outlineMaterialPrefab, Color color, float width = 0.05f)
+        {
+            if(_renderer == null || outlineMaterialPrefab == null) return;
+
+            var currentMats = _renderer.sharedMaterials;
+            if(currentMats.Length > 1) return;
+
+            var newMats = new Material[2];
+            newMats[0] = currentMats[0];
+            newMats[1] = outlineMaterialPrefab;
+
+            _renderer.sharedMaterials = newMats;
+
+            _renderer.GetPropertyBlock(_propBlock);
+
+            _propBlock.SetColor(OutlineColorId, color);
+            _propBlock.SetFloat(OutlineWidthId, width);
+
+            _renderer.SetPropertyBlock(_propBlock);
+        }
+
+        public void RemoveOutline()
+        {
+            if(_renderer == null) return;
+
+            var currentMats = _renderer.sharedMaterials;
+            if(currentMats.Length <= 1) return;
+
+            var newMats = new Material[1];
+            newMats[0] = currentMats[0];
+
+            _renderer.sharedMaterials = newMats;
+        }
+
         public async UniTask PlayRunAwayAndDestroyAsync()
         {
             if(_activeRecoilSequence.isAlive) _activeRecoilSequence.Stop();
@@ -207,6 +281,9 @@ namespace Shooter
             _audioService?.PlaySFX(SoundType.ShooterRunAway);
 
             transform.SetParent(null);
+
+            // 🎯 Slottan kaçmadan hemen önce anlık beyaz flash efektini çalıştırır
+            PlayFlashEffectAsync(0.18f).Forget();
 
             Vector3 startPos           = transform.position;
             Vector3 clearSlotHeightPos = startPos + new Vector3(0f, 0.70f, 0f);

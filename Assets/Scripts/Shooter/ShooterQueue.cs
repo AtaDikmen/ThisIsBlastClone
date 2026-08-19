@@ -22,11 +22,16 @@ namespace Shooter
         [SerializeField] private float   queueBlockSize         = 1f;
         [SerializeField] private Vector3 queueOriginPosition    = new Vector3(0f, -1.8f, 0f);
 
+        [Header("Outline Material")]
+        [SerializeField] private Material outlineMaterial;
+        [SerializeField] private Color outlineColor = Color.black;
+        [SerializeField] private float outlineWidth = 0.05f;
+
         private List<ShooterBlock>[]      _lanes;
         public event Action<ShooterBlock> OnBlockSelected;
-        
+
         private IAudioService _audioService;
-        
+
         [Inject]
         public void Construct(IAudioService audioService)
         {
@@ -107,6 +112,8 @@ namespace Shooter
                     block.OnTapped -= HandleBlockTapped;
                     block.IsInSlot =  true;
 
+                    block.RemoveOutline();
+
                     UpdateLanePositions(l, instant: false);
                     break;
                 }
@@ -141,8 +148,13 @@ namespace Shooter
                 var block = lane[row];
                 if(block == null) continue;
 
-                float   y         = queueOriginPosition.y - (row * stepY);
-                Vector3 targetPos = new Vector3(laneX, y, queueOriginPosition.z);
+                if(row == 0)
+                    block.ApplyOutline(outlineMaterial, outlineColor, outlineWidth);
+                else
+                    block.RemoveOutline();
+
+                float y         = queueOriginPosition.y - (row * stepY);
+                var   targetPos = new Vector3(laneX, y, queueOriginPosition.z);
 
                 if(instant)
                     block.transform.position = targetPos;
@@ -168,16 +180,16 @@ namespace Shooter
                 _lanes[l].Clear();
             }
         }
-        
+
         public void ClearQueueWithRunAwayAnimation()
         {
-            if (_lanes == null) return;
+            if(_lanes == null) return;
 
-            for (int l = 0; l < _lanes.Length; l++)
+            for(int l = 0; l < _lanes.Length; l++)
             {
-                foreach (var block in _lanes[l])
+                foreach(var block in _lanes[l])
                 {
-                    if (block != null)
+                    if(block != null)
                     {
                         block.OnTapped -= HandleBlockTapped;
                         block.PlayRunAwayAndDestroyAsync().Forget();

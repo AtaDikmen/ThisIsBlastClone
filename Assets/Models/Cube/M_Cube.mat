@@ -60,7 +60,7 @@ Material:
     - _QueueOffset: 0
     - _XRMotionVectorsPass: 1
     m_Colors:
-    - _Color: {r: 1, g: 0.8818743, b: 0, a: 0}
-    - _HighlightColor: {r: 0.34305, g: 0, b: 1, a: 0}
+    - _Color: {r: 0, g: 0.8867924, b: 0.42217562, a: 1}
+    - _HighlightColor: {r: 1, g: 1, b: 1, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
