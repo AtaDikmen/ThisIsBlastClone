@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1950648293710388341
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5834665243879650974}
+  - component: {fileID: 4006005881271051373}
+  m_Layer: 0
+  m_Name: LevelManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5834665243879650974
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1950648293710388341}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4006005881271051373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1950648293710388341}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8385e3c772063d443a76a696fba08e79, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ThisIsBlast.Level.LevelGenerator
+  _defaultGridBlockPrefab: {fileID: 833624215505034239, guid: 1ec20dd6450d44545b2cc993642d9a47, type: 3}
+  _specialBlockPrefabs:
+  - Type: 101
+    Prefab: {fileID: 5745861248704436662, guid: fb3fb07c046ba4d4f8840df631387133, type: 3}
+  - Type: 100
+    Prefab: {fileID: 3184030305776955231, guid: ae50def39b40d9c459eb33ccdebd0457, type: 3}
+  _cellPadding: 0.1
+  _cellSize: 1
+  _gridBottomY: -2
+  _colorPalette:
+  - BlockType: 1
+    Color: {r: 0.9, g: 0.2, b: 0.2, a: 1}
+  - BlockType: 2
+    Color: {r: 0.2, g: 0.45, b: 0.9, a: 1}
+  - BlockType: 3
+    Color: {r: 0.2, g: 0.75, b: 0.3, a: 1}
+  - BlockType: 4
+    Color: {r: 0.98, g: 0.82, b: 0.1, a: 1}
+  - BlockType: 5
+    Color: {r: 0.6, g: 0.2, b: 0.85, a: 1}
+  - BlockType: 100
+    Color: {r: 0.55, g: 0.55, b: 0.6, a: 1}
