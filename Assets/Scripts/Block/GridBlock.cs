@@ -5,6 +5,7 @@ using Data;
 using PrimeTween;
 using TMPro;
 using UnityEngine;
+using VFX;
 
 namespace Block
 {
@@ -38,6 +39,7 @@ namespace Block
         public event Action<GridBlock> OnExploded;
 
         private IAudioService _audioService;
+        private IVFXService   _vfxService;
 
         private void Awake()
         {
@@ -63,7 +65,7 @@ namespace Block
             _renderer.SetPropertyBlock(_propBlock);
         }
 
-        public void Setup(BlockType type, int columnIndex, int rowIndex, int initialHealth = 1, IAudioService audioService = null)
+        public void Setup(BlockType type, int columnIndex, int rowIndex, int initialHealth = 1, IAudioService audioService = null, IVFXService vfxService = null)
         {
             Type          = type;
             ColumnIndex   = columnIndex;
@@ -71,6 +73,7 @@ namespace Block
             Health        = initialHealth;
             IsExploding   = false;
             _audioService = audioService;
+            _vfxService   = vfxService;
 
             UpdateHealthLabel();
         }
@@ -113,6 +116,7 @@ namespace Block
             IsExploding = true;
 
             _audioService?.PlaySFX(IsBomb ? SoundType.BombExplode : SoundType.BlockExplode);
+            _vfxService?.PlayVFX(VFXType.BlockExplode, transform.position);
 
             if(IsBomb)
             {

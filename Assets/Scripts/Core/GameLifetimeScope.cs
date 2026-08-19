@@ -8,6 +8,7 @@ using UI;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
+using VFX;
 
 namespace Core
 {
@@ -21,6 +22,9 @@ namespace Core
         [SerializeField] private GameplayController gameplayController;
         [SerializeField] private GameFlowController gameFlowController;
         [SerializeField] private EnvironmentManager environmentManager;
+
+        [Header("VFX")]
+        [SerializeField] private VFXService vfxService;
 
         [Header("Audio")]
         [SerializeField] private AudioManager audioManager;
@@ -45,6 +49,7 @@ namespace Core
             builder.RegisterComponent(gameFlowController);
             builder.RegisterComponent(audioManager).As<IAudioService>();
             builder.RegisterComponent(environmentManager);
+            builder.RegisterComponent(vfxService).As<IVFXService>();
 
             builder.RegisterComponent(uiManager);
         }

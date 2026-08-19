@@ -365,7 +365,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8385e3c772063d443a76a696fba08e79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThisIsBlast.Level.LevelGenerator
-  _defaultGridBlockPrefab: {fileID: 2887440827896768960, guid: 937420d4d8bdc104dbea5a653f4b18e5, type: 3}
+  _defaultGridBlockPrefab: {fileID: 833624215505034239, guid: 1ec20dd6450d44545b2cc993642d9a47, type: 3}
   _specialBlockPrefabs:
   - Type: 101
     Prefab: {fileID: 5745861248704436662, guid: fb3fb07c046ba4d4f8840df631387133, type: 3}
@@ -442,6 +442,7 @@ MonoBehaviour:
   gameplayController: {fileID: 223753445}
   gameFlowController: {fileID: 46614490}
   environmentManager: {fileID: 1036067164}
+  vfxService: {fileID: 1685963210}
   audioManager: {fileID: 1544516133}
   uiManager: {fileID: 1162608333}
   levels:
@@ -3249,6 +3250,7 @@ Transform:
   - {fileID: 1544516131}
   - {fileID: 1162608332}
   - {fileID: 1036067163}
+  - {fileID: 1685963209}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &938857822
@@ -5573,6 +5575,54 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1675574024}
   m_CullTransparentMesh: 1
+--- !u!1 &1685963208
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1685963209}
+  - component: {fileID: 1685963210}
+  m_Layer: 0
+  m_Name: VfxManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1685963209
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1685963208}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 891245810}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1685963210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1685963208}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6348536eb5940549cf0c7c791680b91, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VFX.VFXService
+  vfxConfigurations:
+  - type: 0
+    prefab: {fileID: 7964853032203856577, guid: 4469abf254d4ae54da3dde9930ea3f78, type: 3}
+    initialPoolSize: 0
 --- !u!1 &1694806378
 GameObject:
   m_ObjectHideFlags: 0
@@ -5602,11 +5652,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0fcc68af99519c844be9bcd55a68a767, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Shooter.ShooterQueue
-  shooterBlockPrefab: {fileID: 2887440827896768960, guid: cd9704c9330821245bd01d8f5b04558e, type: 3}
+  shooterBlockPrefab: {fileID: 8914261779496737366, guid: 14a5ab47d24728a4990d9fa7deaf98ec, type: 3}
   laneCount: 3
   queueHorizontalPadding: 0.5
   queueVerticalPadding: 0.5
-  queueBlockSize: 1
+  queueBlockSize: 1.1
   queueOriginPosition: {x: 0, y: -7, z: 0}
 --- !u!4 &1694806380
 Transform:

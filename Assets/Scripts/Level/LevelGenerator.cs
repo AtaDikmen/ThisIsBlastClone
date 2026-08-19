@@ -5,6 +5,7 @@ using Block;
 using Data;
 using UnityEngine;
 using VContainer;
+using VFX;
 
 namespace Level
 {
@@ -38,10 +39,12 @@ namespace Level
         [Header("Color Palette")]
         [SerializeField] private BlockColorEntry[] _colorPalette;
 
-        private                 Dictionary<BlockType, GameObject> _prefabLookup;
-        private                 Dictionary<BlockType, Color>      _colorLookup;
-        private                 MaterialPropertyBlock             _propBlock;
-        private readonly static int                               BaseColorId = Shader.PropertyToID("_BaseColor");
+        private Dictionary<BlockType, GameObject> _prefabLookup;
+        private Dictionary<BlockType, Color>      _colorLookup;
+        private MaterialPropertyBlock             _propBlock;
+
+        private readonly static int ColorId     = Shader.PropertyToID("_Color");
+        private readonly static int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         private readonly List<GameObject> _spawnedBlocks = new List<GameObject>();
 
@@ -49,11 +52,13 @@ namespace Level
         public LevelData  CurrentLevelData       { get; private set; }
 
         private IAudioService _audioService;
+        private IVFXService   _vfxService;
 
         [Inject]
-        public void Construct(IAudioService audioService)
+        public void Construct(IAudioService audioService, IVFXService vfxService)
         {
             _audioService = audioService;
+            _vfxService   = vfxService;
         }
 
         private void BuildPrefabLookup()
@@ -142,6 +147,7 @@ namespace Level
                     }
                     else if(cellType == BlockType.Rainbow)
                     {
+                        // Rainbow kendi animasyonlu rengini yönetir
                     }
                     else if(cellType != BlockType.Bomb)
                     {
@@ -152,7 +158,7 @@ namespace Level
                     if(gridBlock == null)
                         gridBlock = blockObj.AddComponent<GridBlock>();
 
-                    gridBlock.Setup(actualColorType, c, r, initialHealth, _audioService);
+                    gridBlock.Setup(actualColorType, c, r, initialHealth, _audioService, _vfxService);
 
                     gridColumns[c].AddBlock(gridBlock);
                     _spawnedBlocks.Add(blockObj);
@@ -201,10 +207,14 @@ namespace Level
 
             renderer.GetPropertyBlock(_propBlock);
 
-            if(_colorLookup != null && _colorLookup.TryGetValue(blockType, out Color color))
-                _propBlock.SetColor(BaseColorId, color);
-            else
-                _propBlock.SetColor(BaseColorId, Color.white);
+            Color targetColor = Color.white;
+            if(_colorLookup != null && _colorLookup.TryGetValue(blockType, out Color foundColor))
+            {
+                targetColor = foundColor;
+            }
+
+            _propBlock.SetColor(ColorId, targetColor);
+            _propBlock.SetColor(BaseColorId, targetColor);
 
             renderer.SetPropertyBlock(_propBlock);
         }
